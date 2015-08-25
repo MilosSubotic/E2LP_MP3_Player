@@ -1,0 +1,25 @@
+#
+# pin constraints
+#
+#
+# additional constraints
+#
+
+NET CLK_N LOC = "AF14"  |  IOSTANDARD = "LVDS_33";
+NET CLK_P LOC = "AD14"  |  IOSTANDARD = "LVDS_33";
+
+NET "CLK" TNM_NET = sys_clk_pin;
+TIMESPEC TS_sys_clk_pin = PERIOD sys_clk_pin 50000 kHz;
+
+NET RESET LOC = "AE24"  |  IOSTANDARD = "LVCMOS33"  |  TIG;
+
+
+NET RS232_Uart_1_sin LOC = "A21"  |  IOSTANDARD = "LVCMOS33";
+NET RS232_Uart_1_sout LOC = "A20"  |  IOSTANDARD = "LVCMOS33";
+
+
+NET axi_spi_0_SCK_pin  LOC = "R23"  |  IOSTANDARD = "LVCMOS33"; # MMC_CLK, SCK
+NET axi_spi_0_MISO_pin LOC = "T19"  |  IOSTANDARD = "LVCMOS33"; # MMC_DATA0, MISO
+NET axi_spi_0_MOSI_pin LOC = "R24"  |  IOSTANDARD = "LVCMOS33"; # MMC_CMD, MOSI
+NET axi_spi_0_SS_pin   LOC = "R19"  |  IOSTANDARD = "LVCMOS33"; # MMC_DATA3, SS
+
