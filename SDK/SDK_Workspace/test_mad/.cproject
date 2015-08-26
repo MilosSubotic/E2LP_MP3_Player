@@ -50,7 +50,7 @@
 								<inputType id="xilinx.gnu.compiler.input.1444510825" name="C source files" superClass="xilinx.gnu.compiler.input"/>
 							</tool>
 							<tool id="xilinx.gnu.mb.cxx.toolchain.compiler.debug.204210213" name="MicroBlaze g++ compiler" superClass="xilinx.gnu.mb.cxx.toolchain.compiler.debug">
-								<option defaultValue="gnu.c.optimization.level.none" id="xilinx.gnu.compiler.option.optimization.level.532492350" name="Optimization Level" superClass="xilinx.gnu.compiler.option.optimization.level" value="gnu.c.optimization.level.most" valueType="enumerated"/>
+								<option defaultValue="gnu.c.optimization.level.none" id="xilinx.gnu.compiler.option.optimization.level.532492350" name="Optimization Level" superClass="xilinx.gnu.compiler.option.optimization.level" value="gnu.c.optimization.level.optimize" valueType="enumerated"/>
 								<option id="xilinx.gnu.compiler.option.debugging.level.1277682740" name="Debug Level" superClass="xilinx.gnu.compiler.option.debugging.level" value="gnu.c.debugging.level.max" valueType="enumerated"/>
 								<option id="xilinx.gnu.mb.compiler.inferred.mbversion.873632621" name="MicroBlaze Version" superClass="xilinx.gnu.mb.compiler.inferred.mbversion" value="8.50.b" valueType="string"/>
 								<option id="xilinx.gnu.mb.compiler.inferred.norelax.1249161839" name="No relaxation (-Wl,--no-relax)" superClass="xilinx.gnu.mb.compiler.inferred.norelax" value="true" valueType="boolean"/>
@@ -144,7 +144,7 @@
 								<inputType id="xilinx.gnu.assembler.input.1506760561" superClass="xilinx.gnu.assembler.input"/>
 							</tool>
 							<tool errorParsers="org.eclipse.cdt.core.GCCErrorParser" id="xilinx.gnu.mb.c.toolchain.compiler.release.14117228" name="MicroBlaze gcc compiler" superClass="xilinx.gnu.mb.c.toolchain.compiler.release">
-								<option defaultValue="gnu.c.optimization.level.more" id="xilinx.gnu.compiler.option.optimization.level.450801240" name="Optimization Level" superClass="xilinx.gnu.compiler.option.optimization.level" value="gnu.c.optimization.level.most" valueType="enumerated"/>
+								<option defaultValue="gnu.c.optimization.level.more" id="xilinx.gnu.compiler.option.optimization.level.450801240" name="Optimization Level" superClass="xilinx.gnu.compiler.option.optimization.level" value="gnu.c.optimization.level.optimize" valueType="enumerated"/>
 								<option id="xilinx.gnu.compiler.option.debugging.level.2118314085" name="Debug Level" superClass="xilinx.gnu.compiler.option.debugging.level" value="gnu.c.debugging.level.max" valueType="enumerated"/>
 								<option id="xilinx.gnu.mb.compiler.inferred.mbversion.1933052546" name="MicroBlaze Version" superClass="xilinx.gnu.mb.compiler.inferred.mbversion" value="8.50.b" valueType="string"/>
 								<option id="xilinx.gnu.mb.compiler.inferred.usele.1152623649" name="Produce little endian code (-mlittle-endian)" superClass="xilinx.gnu.mb.compiler.inferred.usele" value="true" valueType="boolean"/>
@@ -168,7 +168,7 @@
 								<inputType id="xilinx.gnu.compiler.input.451641404" name="C source files" superClass="xilinx.gnu.compiler.input"/>
 							</tool>
 							<tool id="xilinx.gnu.mb.cxx.toolchain.compiler.release.406630418" name="MicroBlaze g++ compiler" superClass="xilinx.gnu.mb.cxx.toolchain.compiler.release">
-								<option defaultValue="gnu.c.optimization.level.more" id="xilinx.gnu.compiler.option.optimization.level.33638433" name="Optimization Level" superClass="xilinx.gnu.compiler.option.optimization.level" value="gnu.c.optimization.level.most" valueType="enumerated"/>
+								<option defaultValue="gnu.c.optimization.level.more" id="xilinx.gnu.compiler.option.optimization.level.33638433" name="Optimization Level" superClass="xilinx.gnu.compiler.option.optimization.level" value="gnu.c.optimization.level.optimize" valueType="enumerated"/>
 								<option id="xilinx.gnu.compiler.option.debugging.level.1035813387" name="Debug Level" superClass="xilinx.gnu.compiler.option.debugging.level" value="gnu.c.debugging.level.max" valueType="enumerated"/>
 								<option id="xilinx.gnu.mb.compiler.inferred.mbversion.687722603" name="MicroBlaze Version" superClass="xilinx.gnu.mb.compiler.inferred.mbversion" value="8.50.b" valueType="string"/>
 								<option id="xilinx.gnu.mb.compiler.inferred.usele.1257604183" name="Produce little endian code (-mlittle-endian)" superClass="xilinx.gnu.mb.compiler.inferred.usele" value="true" valueType="boolean"/>

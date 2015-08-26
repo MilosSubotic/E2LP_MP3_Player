@@ -41,7 +41,7 @@
 #include "pff.h"
 #include "mad.h"
 
-#define IN_BUFF_LEN 32768
+#define IN_BUFF_LEN 4096
 
 static int in_chunk_cnt = 0;
 static int out_chunk_cnt = 0;
@@ -54,16 +54,21 @@ static enum mad_flow input_fun(void *data, struct mad_stream *stream) {
 
 	(void)data;
 
-	//xil_printf("in_chunk_cnt = %d\n", in_chunk_cnt);
+	xil_printf("in_chunk_cnt = %d\n", in_chunk_cnt);
+
+	// TODO Just for debug decode only one frame.
+	/*if(in_chunk_cnt == 1){
+		return MAD_FLOW_STOP;
+	}*/
 
 	// Read buffer.
-	rc = pf_read(in_buff, sizeof(in_buff), &br);
+	rc = pf_read(in_buff, IN_BUFF_LEN, &br);
 	// Error or end of file.
-	if (rc || !br){
+	if (rc || br != IN_BUFF_LEN){
 		return MAD_FLOW_STOP;
 	}
 
-	mad_stream_buffer(stream, in_buff, sizeof(in_buff));
+	mad_stream_buffer(stream, in_buff, IN_BUFF_LEN);
 
 	in_chunk_cnt++;
 
@@ -78,6 +83,8 @@ static enum mad_flow output_fun(
 	unsigned int nchannels, nsamples;
 	mad_fixed_t const *left_ch, *right_ch;
 
+	xil_printf("out_chunk_cnt = %d\n", out_chunk_cnt);
+
 	/* pcm->samplerate contains the sampling frequency */
 
 	nchannels = pcm->channels;
@@ -85,7 +92,16 @@ static enum mad_flow output_fun(
 	left_ch = pcm->samples[0];
 	right_ch = pcm->samples[1];
 
-	xil_printf("out_chunk_cnt = %d\n", out_chunk_cnt);
+	xil_printf("nsamples = %d\n", nsamples);
+
+	if(out_chunk_cnt == 2){
+		xil_printf("left_ch\n");
+		for(int i = 0; i < 10; i++){
+			xil_printf("0x%08x\n", left_ch[i]);
+		}
+		return MAD_FLOW_STOP;
+	}
+
 	out_chunk_cnt++;
 
 	return MAD_FLOW_CONTINUE;
@@ -102,7 +118,7 @@ enum mad_flow error_fun(
 	xil_printf(
 		"decoding error 0x%04x (%s) at byte offset %d\n",
 		stream->error, mad_stream_errorstr(stream),
-		IN_BUFF_LEN*in_chunk_cnt + (stream->this_frame - in_buff)
+		IN_BUFF_LEN*(in_chunk_cnt-1) + (stream->this_frame - in_buff)
 	);
 
 	/* return MAD_FLOW_BREAK here to stop decoding (and propagate an error) */

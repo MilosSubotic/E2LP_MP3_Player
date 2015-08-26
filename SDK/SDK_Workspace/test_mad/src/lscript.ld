@@ -10,8 +10,8 @@
 /*                                                                 */
 /*******************************************************************/
 
-_STACK_SIZE = DEFINED(_STACK_SIZE) ? _STACK_SIZE : 0x400;
-_HEAP_SIZE = DEFINED(_HEAP_SIZE) ? _HEAP_SIZE : 0x10000;
+_STACK_SIZE = DEFINED(_STACK_SIZE) ? _STACK_SIZE : 0x4000;
+_HEAP_SIZE = DEFINED(_HEAP_SIZE) ? _HEAP_SIZE : 0xc000;
 
 /* Define Memories in the system */
 
@@ -208,7 +208,7 @@ _SDA2_BASE_ = __sdata2_start + ((__sbss2_end - __sdata2_start) / 2 );
    . = ALIGN(8);
    _stack = .;
    __stack = _stack;
-} > double_bram
+} > scratchpad_bram
 
 _end = .;
 }
