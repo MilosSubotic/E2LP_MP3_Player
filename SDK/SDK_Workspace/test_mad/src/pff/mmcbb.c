@@ -350,7 +350,7 @@ DSTATUS disk_initialize (void)
 	 * Initialize the SPI driver so that it's ready to use,
 	 * specify the device ID that is generated in xparameters.h.
 	 */
-	XStatus Status = XSpi_Initialize(&Spi, XPAR_AXI_SPI_0_DEVICE_ID);
+	XStatus Status = XSpi_Initialize(&Spi, XPAR_SDCARD_SPI_DEVICE_ID);
 	if(Status != XST_SUCCESS) {\
    		xil_printf("Failure INIT\r\n");
 		return XST_FAILURE;

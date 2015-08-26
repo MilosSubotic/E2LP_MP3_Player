@@ -33,6 +33,7 @@
 
 
 #include <stdio.h>
+#include <stdlib.h>
 #include "platform.h"
 #include "xparameters.h"
 #include "xil_types.h"
@@ -40,30 +41,30 @@
 #include "pff.h"
 #include "mad.h"
 
-#define INPUT_BUFFER_LEN 64
+#define IN_BUFF_LEN 32768
 
 static int in_chunk_cnt = 0;
 static int out_chunk_cnt = 0;
 
+BYTE* in_buff;
+
 static enum mad_flow input_fun(void *data, struct mad_stream *stream) {
 	FRESULT rc;
 	WORD br;
-	BYTE buff[INPUT_BUFFER_LEN];
 
 	(void)data;
 
-	xil_printf("in_chunk_cnt = %d\n", in_chunk_cnt);
+	//xil_printf("in_chunk_cnt = %d\n", in_chunk_cnt);
 
 	// Read buffer.
-	rc = pf_read(buff, sizeof(buff), &br);
+	rc = pf_read(in_buff, sizeof(in_buff), &br);
 	// Error or end of file.
 	if (rc || !br){
 		return MAD_FLOW_STOP;
 	}
 
-	mad_stream_buffer(stream, buff, sizeof(buff));
+	mad_stream_buffer(stream, in_buff, sizeof(in_buff));
 
-	xil_printf("in_chunk_cnt = %d\n", in_chunk_cnt);
 	in_chunk_cnt++;
 
 	return MAD_FLOW_CONTINUE;
@@ -99,9 +100,9 @@ enum mad_flow error_fun(
 	(void)data;
 
 	xil_printf(
-		"decoding error 0x%04x (%s) at byte offset %u\n",
+		"decoding error 0x%04x (%s) at byte offset %d\n",
 		stream->error, mad_stream_errorstr(stream),
-		INPUT_BUFFER_LEN*in_chunk_cnt + stream->this_frame
+		IN_BUFF_LEN*in_chunk_cnt + (stream->this_frame - in_buff)
 	);
 
 	/* return MAD_FLOW_BREAK here to stop decoding (and propagate an error) */
@@ -132,6 +133,11 @@ int main (void)
 		return 1;
 	}
 
+	in_buff = (BYTE*)malloc(IN_BUFF_LEN);
+	if(!in_buff){
+		xil_printf("Failed to allocate input buffer!");
+		return 1;
+	}
 
 	struct mad_decoder decoder;
 
@@ -155,6 +161,8 @@ int main (void)
 
 	/* release the decoder */
 	mad_decoder_finish(&decoder);
+
+	free(in_buff);
 
 	xil_printf("\nTest completed.\n");
 
