@@ -18,8 +18,8 @@ NET RS232_Uart_1_sin LOC = "A21"  |  IOSTANDARD = "LVCMOS33";
 NET RS232_Uart_1_sout LOC = "A20"  |  IOSTANDARD = "LVCMOS33";
 
 
-NET axi_spi_0_SCK_pin  LOC = "R23"  |  IOSTANDARD = "LVCMOS33"; # MMC_CLK, SCK
-NET axi_spi_0_MISO_pin LOC = "T19"  |  IOSTANDARD = "LVCMOS33"; # MMC_DATA0, MISO
-NET axi_spi_0_MOSI_pin LOC = "R24"  |  IOSTANDARD = "LVCMOS33"; # MMC_CMD, MOSI
-NET axi_spi_0_SS_pin   LOC = "R19"  |  IOSTANDARD = "LVCMOS33"; # MMC_DATA3, SS
+NET sdcard_spi_SCK_pin  LOC = "R23"  |  IOSTANDARD = "LVCMOS33"; # MMC_CLK, SCK
+NET sdcard_spi_MISO_pin LOC = "T19"  |  IOSTANDARD = "LVCMOS33"; # MMC_DATA0, MISO
+NET sdcard_spi_MOSI_pin LOC = "R24"  |  IOSTANDARD = "LVCMOS33"; # MMC_CMD, MOSI
+NET sdcard_spi_SS_pin   LOC = "R19"  |  IOSTANDARD = "LVCMOS33"; # MMC_DATA3, SS
 
