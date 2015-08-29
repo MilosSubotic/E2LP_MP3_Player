@@ -50,7 +50,7 @@ void sample_interrupt_handler(void* baseaddr_p) {
 	(void) baseaddr_p;
 	tick_48kHz++;
 
-	*audio_out = ((s32)dds_next_sample(tuning_word)) << 13;
+	*audio_out = ((s32)dds_next_sample(tuning_word)) << 16;
 }
 
 static XIntc intc;
