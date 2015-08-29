@@ -1,0 +1,9 @@
+##############################################################################
+## Filename:          C:/Users/subotic/home/ELEKTRONIKA/A_PROGRAM_CODE/Embedded/E2LP/E2LP_MP3_Player/E2LP_MP3_Player_XPS_Project/pcores/axi_adau1772_i2s_ctrl_v1_00_a/data/axi_adau1772_i2s_ctrl_v2_1_0.pao
+## Description:       Peripheral Analysis Order
+## Date:              Sat Aug 29 19:54:52 2015 (by Create and Import Peripheral Wizard)
+##############################################################################
+
+lib axi_adau1772_i2s_ctrl_v1_00_a adau1772_i2s_ctrl_e vhdl
+lib axi_adau1772_i2s_ctrl_v1_00_a adau1772_i2s_ctrl_a vhdl
+lib axi_adau1772_i2s_ctrl_v1_00_a axi_adau1772_i2s_ctrl vhdl

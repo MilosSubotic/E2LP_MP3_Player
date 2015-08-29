@@ -23,3 +23,20 @@ NET sdcard_spi_MISO_pin LOC = "T19"  |  IOSTANDARD = "LVCMOS33"; # MMC_DATA0, MI
 NET sdcard_spi_MOSI_pin LOC = "R24"  |  IOSTANDARD = "LVCMOS33"; # MMC_CMD, MOSI
 NET sdcard_spi_SS_pin   LOC = "R19"  |  IOSTANDARD = "LVCMOS33"; # MMC_DATA3, SS
 
+
+
+NET i_clk_24MHz LOC = "M21" | IOSTANDARD = "LVCMOS33";
+NET "i_clk_24MHz" TNM_NET = i_clk_24MHz_pin;
+TIMESPEC TS_i_clk_24MHz_pin = PERIOD i_clk_24MHz_pin 24000 kHz;
+
+#NET in_reset LOC = "AE24" | IOSTANDARD = "LVCMOS33" | TIG;
+
+NET o_audio_codec_lrclk LOC = "AB7" | IOSTANDARD = "LVCMOS18" | DRIVE = 24;
+NET o_audio_codec_bclk LOC = "AB5" | IOSTANDARD = "LVCMOS18" | DRIVE = 24;
+NET o_audio_codec_bclk CLOCK_DEDICATED_ROUTE = FALSE;
+NET o_audio_codec_dac_sdata LOC = "AA7" | IOSTANDARD = "LVCMOS18" | DRIVE = 24;
+NET i_audio_codec_adc_sdata0 LOC = "AA5" | IOSTANDARD = "LVCMOS18";
+NET i_audio_codec_adc_sdata1 LOC = "Y6" | IOSTANDARD = "LVCMOS18";
+NET o_audio_codec_dmic0_1 LOC = "W7" | IOSTANDARD = "LVCMOS18";
+NET o_audio_codec_dmic2_3 LOC = "Y5" | IOSTANDARD = "LVCMOS18";
+NET on_audio_codec_power_down LOC = "AF2" | IOSTANDARD = "LVCMOS18";

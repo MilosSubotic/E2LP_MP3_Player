@@ -21,6 +21,15 @@
  PORT sdcard_spi_MISO_pin = sdcard_spi_MISO, DIR = IO
  PORT sdcard_spi_MOSI_pin = sdcard_spi_MOSI, DIR = IO
  PORT sdcard_spi_SS_pin = sdcard_spi_SS, DIR = IO
+ PORT i_clk_24MHz = net_i_clk_24MHz, DIR = I, SIGIS = CLK
+ PORT o_audio_codec_lrclk = audio_out_o_audio_codec_lrclk, DIR = O
+ PORT o_audio_codec_bclk = audio_out_o_audio_codec_bclk, DIR = O
+ PORT o_audio_codec_dac_sdata = audio_out_o_audio_codec_dac_sdata, DIR = O
+ PORT i_audio_codec_adc_sdata0 = net_i_audio_codec_adc_sdata0, DIR = I
+ PORT i_audio_codec_adc_sdata1 = net_i_audio_codec_adc_sdata1, DIR = I
+ PORT o_audio_codec_dmic0_1 = audio_out_o_audio_codec_dmic0_1, DIR = O
+ PORT o_audio_codec_dmic2_3 = audio_out_o_audio_codec_dmic2_3, DIR = O
+ PORT on_audio_codec_power_down = audio_out_on_audio_codec_power_down, DIR = O
 
 
 BEGIN proc_sys_reset
@@ -47,7 +56,7 @@ BEGIN lmb_bram_if_cntlr
  PARAMETER INSTANCE = microblaze_0_i_bram_ctrl_0
  PARAMETER HW_VER = 3.10.c
  PARAMETER C_BASEADDR = 0x00000000
- PARAMETER C_HIGHADDR = 0x0000FFFF
+ PARAMETER C_HIGHADDR = 0x0000ffff
  BUS_INTERFACE SLMB = microblaze_0_ilmb
  BUS_INTERFACE BRAM_PORT = microblaze_0_i_bram_ctrl_2_microblaze_0_bram_block
 END
@@ -63,7 +72,7 @@ BEGIN lmb_bram_if_cntlr
  PARAMETER INSTANCE = microblaze_0_d_bram_ctrl_0
  PARAMETER HW_VER = 3.10.c
  PARAMETER C_BASEADDR = 0x00000000
- PARAMETER C_HIGHADDR = 0x0000FFFF
+ PARAMETER C_HIGHADDR = 0x0000ffff
  BUS_INTERFACE SLMB = microblaze_0_dlmb
  BUS_INTERFACE BRAM_PORT = microblaze_0_d_bram_ctrl_2_microblaze_0_bram_block
 END
@@ -94,6 +103,7 @@ BEGIN microblaze
  BUS_INTERFACE DLMB = microblaze_0_dlmb
  BUS_INTERFACE M_AXI_DP = axi4lite_0
  BUS_INTERFACE DEBUG = microblaze_0_debug
+ BUS_INTERFACE INTERRUPT = axi_intc_0_INTERRUPT
  PORT MB_RESET = proc_sys_reset_0_MB_Reset
  PORT CLK = clk_100_0000MHz
 END
@@ -172,7 +182,7 @@ BEGIN lmb_bram_if_cntlr
  PARAMETER INSTANCE = microblaze_0_d_bram_ctrl_1
  PARAMETER HW_VER = 3.10.c
  PARAMETER C_BASEADDR = 0x00010000
- PARAMETER C_HIGHADDR = 0x0001FFFF
+ PARAMETER C_HIGHADDR = 0x0001ffff
  BUS_INTERFACE SLMB = microblaze_0_dlmb
  BUS_INTERFACE BRAM_PORT = microblaze_0_d_bram_ctrl_1_BRAM_PORT
 END
@@ -181,7 +191,7 @@ BEGIN lmb_bram_if_cntlr
  PARAMETER INSTANCE = microblaze_0_i_bram_ctrl_1
  PARAMETER HW_VER = 3.10.c
  PARAMETER C_BASEADDR = 0x00010000
- PARAMETER C_HIGHADDR = 0x0001FFFF
+ PARAMETER C_HIGHADDR = 0x0001ffff
  BUS_INTERFACE SLMB = microblaze_0_ilmb
  BUS_INTERFACE BRAM_PORT = microblaze_0_i_bram_ctrl_1_BRAM_PORT
 END
@@ -190,7 +200,7 @@ BEGIN axi_bram_ctrl
  PARAMETER INSTANCE = microblaze_0_d_bram_ctrl_2
  PARAMETER HW_VER = 1.03.a
  PARAMETER C_S_AXI_BASEADDR = 0x00020000
- PARAMETER C_S_AXI_HIGHADDR = 0x0002FFFF
+ PARAMETER C_S_AXI_HIGHADDR = 0x0002ffff
  BUS_INTERFACE S_AXI = axi4lite_0
  BUS_INTERFACE BRAM_PORTA = axi_bram_ctrl_0_BRAM_PORTA
  BUS_INTERFACE BRAM_PORTB = axi_bram_ctrl_0_BRAM_PORTB
@@ -202,5 +212,36 @@ BEGIN bram_block
  PARAMETER HW_VER = 1.00.a
  BUS_INTERFACE PORTA = axi_bram_ctrl_0_BRAM_PORTA
  BUS_INTERFACE PORTB = axi_bram_ctrl_0_BRAM_PORTB
+END
+
+BEGIN axi_adau1772_i2s_ctrl
+ PARAMETER INSTANCE = audio_out
+ PARAMETER HW_VER = 1.00.a
+ PARAMETER C_BASEADDR = 0x73800000
+ PARAMETER C_HIGHADDR = 0x7380ffff
+ BUS_INTERFACE S_AXI = axi4lite_0
+ PORT S_AXI_ACLK = clk_100_0000MHz
+ PORT i_clk_24MHz = net_i_clk_24MHz
+ PORT in_reset = net_vcc
+ PORT o_audio_codec_lrclk = audio_out_o_audio_codec_lrclk
+ PORT o_audio_codec_bclk = audio_out_o_audio_codec_bclk
+ PORT o_audio_codec_dac_sdata = audio_out_o_audio_codec_dac_sdata
+ PORT i_audio_codec_adc_sdata0 = net_i_audio_codec_adc_sdata0
+ PORT i_audio_codec_adc_sdata1 = net_i_audio_codec_adc_sdata1
+ PORT o_audio_codec_dmic0_1 = audio_out_o_audio_codec_dmic0_1
+ PORT o_audio_codec_dmic2_3 = audio_out_o_audio_codec_dmic2_3
+ PORT on_audio_codec_power_down = audio_out_on_audio_codec_power_down
+ PORT o_sample_interrupt = audio_out_o_sample_interrupt
+END
+
+BEGIN axi_intc
+ PARAMETER INSTANCE = axi_intc_0
+ PARAMETER HW_VER = 1.04.a
+ PARAMETER C_BASEADDR = 0x41200000
+ PARAMETER C_HIGHADDR = 0x4120ffff
+ BUS_INTERFACE S_AXI = axi4lite_0
+ BUS_INTERFACE INTERRUPT = axi_intc_0_INTERRUPT
+ PORT S_AXI_ACLK = clk_100_0000MHz
+ PORT Intr = audio_out_o_sample_interrupt
 END
 

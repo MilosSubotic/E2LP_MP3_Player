@@ -1,0 +1,8 @@
+-batch 
+-create axi_adau1772_i2s_ctrl 
+-ver 1.00.a 
+-dir "C:\Users\subotic\home\ELEKTRONIKA\A_PROGRAM_CODE\Embedded\E2LP\E2LP_MP3_Player\E2LP_MP3_Player_XPS_Project" 
+-lang vhdl 
+-bus axi4lite s 
+-xps 
+-ise 
