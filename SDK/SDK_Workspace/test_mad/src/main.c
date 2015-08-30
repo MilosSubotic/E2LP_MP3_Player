@@ -51,7 +51,14 @@
 
 static volatile u32* audio_out = (volatile u32*) XPAR_AUDIO_OUT_BASEADDR;
 
-static volatile u64 tick_48kHz = 0;
+static volatile clock_t tick_48kHz = 0;
+static inline clock_t clock(void) {
+	return tick_48kHz;
+}
+#define CLOCKS_PER_SEC 48000
+static inline u32 clock_t2us(clock_t c) {
+	return (u32)(((u64)(c))*1000000/CLOCKS_PER_SEC);
+}
 
 static volatile u16 tuning_word = 0;
 
@@ -73,6 +80,11 @@ static int out_chunk_cnt = 0;
 
 static BYTE* in_buff;
 
+static clock_t read_clks = 0;
+static clock_t decode_clks = 0;
+static clock_t play_clks = 0;
+static clock_t start_decode;
+
 static enum mad_flow input_fun(void *data, struct mad_stream *stream) {
 	FRESULT rc;
 	WORD br;
@@ -82,20 +94,27 @@ static enum mad_flow input_fun(void *data, struct mad_stream *stream) {
 	xil_printf("in_chunk_cnt = %d\n", in_chunk_cnt);
 
 	// TODO Just for debug decode only one frame.
-	/*if(in_chunk_cnt == 1){
-	 return MAD_FLOW_STOP;
-	 }*/
+	if (in_chunk_cnt == 2) {
+		xil_printf("read time = %dus\n", clock_t2us(read_clks));
+		xil_printf("decode time = %dus\n", clock_t2us(decode_clks));
+		xil_printf("play time = %dus\n", clock_t2us(play_clks));
+		return MAD_FLOW_STOP;
+	}
 
+	clock_t start_read = clock();
 	// Read buffer.
 	rc = pf_read(in_buff, IN_BUFF_LEN, &br);
 	// Error or end of file.
 	if (rc || br != IN_BUFF_LEN) {
 		return MAD_FLOW_STOP;
 	}
-
 	mad_stream_buffer(stream, in_buff, IN_BUFF_LEN);
 
 	in_chunk_cnt++;
+	clock_t end_read = clock();
+	read_clks += end_read - start_read;
+	decode_clks += start_read - start_decode;
+	start_decode = clock();
 
 	return MAD_FLOW_CONTINUE;
 }
@@ -107,7 +126,7 @@ volatile static bool out_buffs_empty[NUM_OUT_BUFF];
 volatile static int current_out_buff = -1;
 volatile static u32 out_buff_read_idx = 0;
 
-static inline u16 scale(mad_fixed_t sample) {
+static inline s16 scale(mad_fixed_t sample) {
 	/* round */
 	sample += (1L << (MAD_F_FRACBITS - 16));
 
@@ -127,7 +146,7 @@ static enum mad_flow output_fun(void *data, struct mad_header const *header,
 	mad_fixed_t const *left_ch, *right_ch;
 
 	xil_printf("out_chunk_cnt = %d\n", out_chunk_cnt);
-	xil_printf("tick_48kHz = %d\n", tick_48kHz);
+	xil_printf("tick_48kHz = %d\n", (int)tick_48kHz);
 
 	xil_printf("current_out_buff = %d\n", current_out_buff);
 	xil_printf("out_buff_read_idx = %d\n", out_buff_read_idx);
@@ -144,6 +163,7 @@ static enum mad_flow output_fun(void *data, struct mad_header const *header,
 	if (nsamples != OUT_BUFF_LEN) {
 		xil_printf("nsamples isn't %d as we expected!\n", OUT_BUFF_LEN);
 	}
+	play_clks += nsamples;
 
 	uint num_empty = 0;
 	for (int b = 0; b < NUM_OUT_BUFF; b++) {
@@ -171,7 +191,7 @@ static enum mad_flow output_fun(void *data, struct mad_header const *header,
 	for (int b = 0; b < NUM_OUT_BUFF; b++) {
 		// Fill up first empty buffer.
 		if (out_buffs_empty[b]) {
-			u16* out_buff = out_buffs[b];
+			s16* out_buff = out_buffs[b];
 			for (int s = 0; s < OUT_BUFF_LEN; s++) {
 				out_buff[s] = scale(left_ch[s]);
 			}
@@ -180,6 +200,8 @@ static enum mad_flow output_fun(void *data, struct mad_header const *header,
 		}
 	}
 
+	// TODO Debug stop on first buffer.
+	//return MAD_FLOW_STOP;
 	/*
 	 if(out_chunk_cnt == 2){
 	 xil_printf("left_ch\n");
@@ -240,6 +262,8 @@ int main(void) {
 
 	init_platform();
 
+	// Audio out stuff.
+
 	XStatus status;
 
 	status = XIntc_Initialize(&intc, XPAR_INTC_0_DEVICE_ID);
@@ -265,6 +289,14 @@ int main(void) {
 	xil_printf("audio_out = 0x%08x\n", *audio_out);
 
 	microblaze_enable_interrupts();
+
+/*
+	// Should be something like 1ms
+	xil_printf("%dus\n", clock()*1000000/CLOCKS_PER_SEC);
+	for(int i = 0; i < 100000; i++){
+	}
+	xil_printf("%d us\n", clock()*1000000/CLOCKS_PER_SEC);
+*/
 
 	// SD card stuff.
 
@@ -309,6 +341,7 @@ int main(void) {
 			0 /* filter fun */, output_fun, error_fun, 0 /* message fun */
 			);
 
+	start_decode = clock();
 	/* start decoding */
 	int result = mad_decoder_run(&decoder, MAD_DECODER_MODE_SYNC);
 	if (result) {
