@@ -145,6 +145,8 @@ static enum mad_flow output_fun(void *data, struct mad_header const *header,
 	unsigned int nchannels, nsamples;
 	mad_fixed_t const *left_ch, *right_ch;
 
+	decode_clks += clock() - start_decode;
+
 	xil_printf("out_chunk_cnt = %d\n", out_chunk_cnt);
 	xil_printf("tick_48kHz = %d\n", (int)tick_48kHz);
 
@@ -200,9 +202,11 @@ static enum mad_flow output_fun(void *data, struct mad_header const *header,
 		}
 	}
 
+/*
 	// TODO Debug stop on first buffer.
-	//return MAD_FLOW_STOP;
-	/*
+	return MAD_FLOW_STOP;
+*/
+/*
 	 if(out_chunk_cnt == 2){
 	 xil_printf("left_ch\n");
 	 for(int i = 0; i < 10; i++){
@@ -210,8 +214,10 @@ static enum mad_flow output_fun(void *data, struct mad_header const *header,
 	 }
 	 return MAD_FLOW_STOP;
 	 }
-	 */
+*/
 	out_chunk_cnt++;
+
+	start_decode = clock();
 
 	return MAD_FLOW_CONTINUE;
 }
