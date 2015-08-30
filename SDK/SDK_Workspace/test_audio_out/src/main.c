@@ -46,7 +46,7 @@ static volatile u64 tick_48kHz = 0;
 
 static volatile u16 tuning_word = 0;
 
-void sample_interrupt_handler(void* baseaddr_p) {
+static void sample_interrupt_handler(void* baseaddr_p) {
 	(void) baseaddr_p;
 	tick_48kHz++;
 
