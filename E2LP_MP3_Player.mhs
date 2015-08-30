@@ -68,20 +68,10 @@ BEGIN lmb_v10
  PORT LMB_CLK = clk_100_0000MHz
 END
 
-BEGIN lmb_bram_if_cntlr
- PARAMETER INSTANCE = microblaze_0_d_bram_ctrl_0
- PARAMETER HW_VER = 3.10.c
- PARAMETER C_BASEADDR = 0x00000000
- PARAMETER C_HIGHADDR = 0x0000ffff
- BUS_INTERFACE SLMB = microblaze_0_dlmb
- BUS_INTERFACE BRAM_PORT = microblaze_0_d_bram_ctrl_2_microblaze_0_bram_block
-END
-
 BEGIN bram_block
  PARAMETER INSTANCE = microblaze_0_bram_block_0
  PARAMETER HW_VER = 1.00.a
  BUS_INTERFACE PORTA = microblaze_0_i_bram_ctrl_2_microblaze_0_bram_block
- BUS_INTERFACE PORTB = microblaze_0_d_bram_ctrl_2_microblaze_0_bram_block
 END
 
 BEGIN microblaze
@@ -99,11 +89,12 @@ BEGIN microblaze
  PARAMETER C_DCACHE_HIGHADDR = 0X3FFFFFFF
  PARAMETER C_USE_DCACHE = 0
  PARAMETER C_DCACHE_ALWAYS_USED = 0
- BUS_INTERFACE ILMB = microblaze_0_ilmb
- BUS_INTERFACE DLMB = microblaze_0_dlmb
+ PARAMETER C_USE_DIV = 1
  BUS_INTERFACE M_AXI_DP = axi4lite_0
  BUS_INTERFACE DEBUG = microblaze_0_debug
  BUS_INTERFACE INTERRUPT = axi_intc_0_INTERRUPT
+ BUS_INTERFACE DLMB = microblaze_0_dlmb
+ BUS_INTERFACE ILMB = microblaze_0_ilmb
  PORT MB_RESET = proc_sys_reset_0_MB_Reset
  PORT CLK = clk_100_0000MHz
 END
@@ -174,17 +165,7 @@ END
 BEGIN bram_block
  PARAMETER INSTANCE = microblaze_0_bram_block_1
  PARAMETER HW_VER = 1.00.a
- BUS_INTERFACE PORTA = microblaze_0_d_bram_ctrl_1_BRAM_PORT
  BUS_INTERFACE PORTB = microblaze_0_i_bram_ctrl_1_BRAM_PORT
-END
-
-BEGIN lmb_bram_if_cntlr
- PARAMETER INSTANCE = microblaze_0_d_bram_ctrl_1
- PARAMETER HW_VER = 3.10.c
- PARAMETER C_BASEADDR = 0x00010000
- PARAMETER C_HIGHADDR = 0x0001ffff
- BUS_INTERFACE SLMB = microblaze_0_dlmb
- BUS_INTERFACE BRAM_PORT = microblaze_0_d_bram_ctrl_1_BRAM_PORT
 END
 
 BEGIN lmb_bram_if_cntlr
@@ -196,22 +177,10 @@ BEGIN lmb_bram_if_cntlr
  BUS_INTERFACE BRAM_PORT = microblaze_0_i_bram_ctrl_1_BRAM_PORT
 END
 
-BEGIN axi_bram_ctrl
- PARAMETER INSTANCE = microblaze_0_d_bram_ctrl_2
- PARAMETER HW_VER = 1.03.a
- PARAMETER C_S_AXI_BASEADDR = 0x00020000
- PARAMETER C_S_AXI_HIGHADDR = 0x0002ffff
- BUS_INTERFACE S_AXI = axi4lite_0
- BUS_INTERFACE BRAM_PORTA = axi_bram_ctrl_0_BRAM_PORTA
- BUS_INTERFACE BRAM_PORTB = axi_bram_ctrl_0_BRAM_PORTB
- PORT S_AXI_ACLK = clk_100_0000MHz
-END
-
 BEGIN bram_block
  PARAMETER INSTANCE = microblaze_0_bram_block_2
  PARAMETER HW_VER = 1.00.a
- BUS_INTERFACE PORTA = axi_bram_ctrl_0_BRAM_PORTA
- BUS_INTERFACE PORTB = axi_bram_ctrl_0_BRAM_PORTB
+ BUS_INTERFACE PORTA = microblaze_0_d_bram_ctrl_2_BRAM_PORT
 END
 
 BEGIN axi_adau1772_i2s_ctrl
@@ -243,5 +212,14 @@ BEGIN axi_intc
  BUS_INTERFACE INTERRUPT = axi_intc_0_INTERRUPT
  PORT S_AXI_ACLK = clk_100_0000MHz
  PORT Intr = audio_out_o_sample_interrupt
+END
+
+BEGIN lmb_bram_if_cntlr
+ PARAMETER INSTANCE = microblaze_0_d_bram_ctrl_2
+ PARAMETER HW_VER = 3.10.c
+ PARAMETER C_BASEADDR = 0x00020000
+ PARAMETER C_HIGHADDR = 0x0002FFFF
+ BUS_INTERFACE SLMB = microblaze_0_dlmb
+ BUS_INTERFACE BRAM_PORT = microblaze_0_d_bram_ctrl_2_BRAM_PORT
 END
 
