@@ -11,14 +11,14 @@
 /*******************************************************************/
 
 _STACK_SIZE = DEFINED(_STACK_SIZE) ? _STACK_SIZE : 0x2000;
-_HEAP_SIZE = DEFINED(_HEAP_SIZE) ? _HEAP_SIZE : 0xc000;
+_HEAP_SIZE = DEFINED(_HEAP_SIZE) ? _HEAP_SIZE : 0xd000;
 
 /* Define Memories in the system */
 
 MEMORY
 {
-   inst_bram : ORIGIN = 0x00000050, LENGTH = 0x00015FB0
-   data_bram : ORIGIN = 0x00016000, LENGTH = 0x001A000
+
+   double_bram : ORIGIN = 0x00000050, LENGTH = 0x0002FFB0
 }
 
 /* Specify the default entry point to the program */
@@ -49,15 +49,15 @@ SECTIONS
    *(.text)
    *(.text.*)
    *(.gnu.linkonce.t.*)
-} > inst_bram
+} > double_bram
 
 .init : {
    KEEP (*(.init))
-} > inst_bram
+} > double_bram
 
 .fini : {
    KEEP (*(.fini))
-} > inst_bram
+} > double_bram
 
 .ctors : {
    __CTOR_LIST__ = .;
@@ -68,7 +68,7 @@ SECTIONS
    KEEP (*(.ctors))
    __CTOR_END__ = .;
    ___CTORS_END___ = .;
-} > data_bram
+} > double_bram
 
 .dtors : {
    __DTOR_LIST__ = .;
@@ -79,7 +79,7 @@ SECTIONS
    KEEP (*(.dtors))
    PROVIDE(__DTOR_END__ = .);
    PROVIDE(___DTORS_END___ = .);
-} > data_bram
+} > double_bram
 
 .rodata : {
    __rodata_start = .;
@@ -87,7 +87,7 @@ SECTIONS
    *(.rodata.*)
    *(.gnu.linkonce.r.*)
    __rodata_end = .;
-} > data_bram
+} > double_bram
 
 .sdata2 : {
    . = ALIGN(8);
@@ -97,7 +97,7 @@ SECTIONS
    *(.gnu.linkonce.s2.*)
    . = ALIGN(8);
    __sdata2_end = .;
-} > data_bram
+} > double_bram
 
 .sbss2 : {
    __sbss2_start = .;
@@ -105,7 +105,7 @@ SECTIONS
    *(.sbss2.*)
    *(.gnu.linkonce.sb2.*)
    __sbss2_end = .;
-} > data_bram
+} > double_bram
 
 .data : {
    . = ALIGN(4);
@@ -114,31 +114,31 @@ SECTIONS
    *(.data.*)
    *(.gnu.linkonce.d.*)
    __data_end = .;
-} > data_bram
+} > double_bram
 
 .got : {
    *(.got)
-} > inst_bram
+} > double_bram
 
 .got1 : {
    *(.got1)
-} > inst_bram
+} > double_bram
 
 .got2 : {
    *(.got2)
-} > inst_bram
+} > double_bram
 
 .eh_frame : {
    *(.eh_frame)
-} > inst_bram
+} > double_bram
 
 .jcr : {
    *(.jcr)
-} > inst_bram
+} > double_bram
 
 .gcc_except_table : {
    *(.gcc_except_table)
-} > inst_bram
+} > double_bram
 
 .sdata : {
    . = ALIGN(8);
@@ -147,7 +147,7 @@ SECTIONS
    *(.sdata.*)
    *(.gnu.linkonce.s.*)
    __sdata_end = .;
-} > data_bram
+} > double_bram
 
 .sbss (NOLOAD) : {
    . = ALIGN(4);
@@ -157,7 +157,7 @@ SECTIONS
    *(.gnu.linkonce.sb.*)
    . = ALIGN(8);
    __sbss_end = .;
-} > data_bram
+} > double_bram
 
 .tdata : {
    __tdata_start = .;
@@ -165,7 +165,7 @@ SECTIONS
    *(.tdata.*)
    *(.gnu.linkonce.td.*)
    __tdata_end = .;
-} > data_bram
+} > double_bram
 
 .tbss : {
    __tbss_start = .;
@@ -173,7 +173,7 @@ SECTIONS
    *(.tbss.*)
    *(.gnu.linkonce.tb.*)
    __tbss_end = .;
-} > data_bram
+} > double_bram
 
 .bss (NOLOAD) : {
    . = ALIGN(4);
@@ -184,7 +184,7 @@ SECTIONS
    *(COMMON)
    . = ALIGN(4);
    __bss_end = .;
-} > data_bram
+} > double_bram
 
 _SDA_BASE_ = __sdata_start + ((__sbss_end - __sdata_start) / 2 );
 
@@ -198,7 +198,7 @@ _SDA2_BASE_ = __sdata2_start + ((__sbss2_end - __sdata2_start) / 2 );
    _heap_start = .;
    . += _HEAP_SIZE;
    _heap_end = .;
-} > data_bram
+} > double_bram
 
 .stack (NOLOAD) : {
    _stack_end = .;
@@ -206,7 +206,7 @@ _SDA2_BASE_ = __sdata2_start + ((__sbss2_end - __sdata2_start) / 2 );
    . = ALIGN(8);
    _stack = .;
    __stack = _stack;
-} > data_bram
+} > double_bram
 
 _end = .;
 }
