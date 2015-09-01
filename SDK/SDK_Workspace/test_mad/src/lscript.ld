@@ -10,17 +10,15 @@
 /*                                                                 */
 /*******************************************************************/
 
-_STACK_SIZE = DEFINED(_STACK_SIZE) ? _STACK_SIZE : 0x4000;
+_STACK_SIZE = DEFINED(_STACK_SIZE) ? _STACK_SIZE : 0x2000;
 _HEAP_SIZE = DEFINED(_HEAP_SIZE) ? _HEAP_SIZE : 0xc000;
 
 /* Define Memories in the system */
 
 MEMORY
 {
-   /*microblaze_0_i_bram_ctrl_0_microblaze_0_d_bram_ctrl_0 : ORIGIN = 0x00010000, LENGTH = 0x00010000*/
-   /*microblaze_0_i_bram_ctrl_1_microblaze_0_d_bram_ctrl_1 : ORIGIN = 0x00000050, LENGTH = 0x0000FFB0*/
-   double_bram : ORIGIN = 0x00000050, LENGTH = 0x0001FFB0
-   scratchpad_bram : ORIGIN = 0x00020000, LENGTH = 0x00010000
+   inst_bram : ORIGIN = 0x00000050, LENGTH = 0x00015FB0
+   data_bram : ORIGIN = 0x00016000, LENGTH = 0x001A000
 }
 
 /* Specify the default entry point to the program */
@@ -51,15 +49,15 @@ SECTIONS
    *(.text)
    *(.text.*)
    *(.gnu.linkonce.t.*)
-} > double_bram
+} > inst_bram
 
 .init : {
    KEEP (*(.init))
-} > double_bram
+} > inst_bram
 
 .fini : {
    KEEP (*(.fini))
-} > double_bram
+} > inst_bram
 
 .ctors : {
    __CTOR_LIST__ = .;
@@ -70,7 +68,7 @@ SECTIONS
    KEEP (*(.ctors))
    __CTOR_END__ = .;
    ___CTORS_END___ = .;
-} > double_bram
+} > data_bram
 
 .dtors : {
    __DTOR_LIST__ = .;
@@ -81,7 +79,7 @@ SECTIONS
    KEEP (*(.dtors))
    PROVIDE(__DTOR_END__ = .);
    PROVIDE(___DTORS_END___ = .);
-} > double_bram
+} > data_bram
 
 .rodata : {
    __rodata_start = .;
@@ -89,7 +87,7 @@ SECTIONS
    *(.rodata.*)
    *(.gnu.linkonce.r.*)
    __rodata_end = .;
-} > double_bram
+} > data_bram
 
 .sdata2 : {
    . = ALIGN(8);
@@ -99,7 +97,7 @@ SECTIONS
    *(.gnu.linkonce.s2.*)
    . = ALIGN(8);
    __sdata2_end = .;
-} > double_bram
+} > data_bram
 
 .sbss2 : {
    __sbss2_start = .;
@@ -107,7 +105,7 @@ SECTIONS
    *(.sbss2.*)
    *(.gnu.linkonce.sb2.*)
    __sbss2_end = .;
-} > double_bram
+} > data_bram
 
 .data : {
    . = ALIGN(4);
@@ -116,31 +114,31 @@ SECTIONS
    *(.data.*)
    *(.gnu.linkonce.d.*)
    __data_end = .;
-} > double_bram
+} > data_bram
 
 .got : {
    *(.got)
-} > double_bram
+} > inst_bram
 
 .got1 : {
    *(.got1)
-} > double_bram
+} > inst_bram
 
 .got2 : {
    *(.got2)
-} > double_bram
+} > inst_bram
 
 .eh_frame : {
    *(.eh_frame)
-} > double_bram
+} > inst_bram
 
 .jcr : {
    *(.jcr)
-} > double_bram
+} > inst_bram
 
 .gcc_except_table : {
    *(.gcc_except_table)
-} > double_bram
+} > inst_bram
 
 .sdata : {
    . = ALIGN(8);
@@ -149,7 +147,7 @@ SECTIONS
    *(.sdata.*)
    *(.gnu.linkonce.s.*)
    __sdata_end = .;
-} > double_bram
+} > data_bram
 
 .sbss (NOLOAD) : {
    . = ALIGN(4);
@@ -159,7 +157,7 @@ SECTIONS
    *(.gnu.linkonce.sb.*)
    . = ALIGN(8);
    __sbss_end = .;
-} > double_bram
+} > data_bram
 
 .tdata : {
    __tdata_start = .;
@@ -167,7 +165,7 @@ SECTIONS
    *(.tdata.*)
    *(.gnu.linkonce.td.*)
    __tdata_end = .;
-} > double_bram
+} > data_bram
 
 .tbss : {
    __tbss_start = .;
@@ -175,7 +173,7 @@ SECTIONS
    *(.tbss.*)
    *(.gnu.linkonce.tb.*)
    __tbss_end = .;
-} > double_bram
+} > data_bram
 
 .bss (NOLOAD) : {
    . = ALIGN(4);
@@ -186,7 +184,7 @@ SECTIONS
    *(COMMON)
    . = ALIGN(4);
    __bss_end = .;
-} > double_bram
+} > data_bram
 
 _SDA_BASE_ = __sdata_start + ((__sbss_end - __sdata_start) / 2 );
 
@@ -200,7 +198,7 @@ _SDA2_BASE_ = __sdata2_start + ((__sbss2_end - __sdata2_start) / 2 );
    _heap_start = .;
    . += _HEAP_SIZE;
    _heap_end = .;
-} > scratchpad_bram
+} > data_bram
 
 .stack (NOLOAD) : {
    _stack_end = .;
@@ -208,7 +206,7 @@ _SDA2_BASE_ = __sdata2_start + ((__sbss2_end - __sdata2_start) / 2 );
    . = ALIGN(8);
    _stack = .;
    __stack = _stack;
-} > scratchpad_bram
+} > data_bram
 
 _end = .;
 }
