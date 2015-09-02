@@ -89,12 +89,14 @@ static enum mad_flow input_fun(void *data, struct mad_stream *stream) {
 	FRESULT rc;
 	WORD br;
 
+	decode_clks += clock() - start_decode;
+
 	(void) data;
 
 	xil_printf("in_chunk_cnt = %d\n", in_chunk_cnt);
 
 	// TODO Just for debug decode only one frame.
-	if (in_chunk_cnt == 2) {
+	if (in_chunk_cnt == 10) {
 		xil_printf("read time = %dus\n", clock_t2us(read_clks));
 		xil_printf("decode time = %dus\n", clock_t2us(decode_clks));
 		xil_printf("play time = %dus\n", clock_t2us(play_clks));
@@ -109,11 +111,10 @@ static enum mad_flow input_fun(void *data, struct mad_stream *stream) {
 		return MAD_FLOW_STOP;
 	}
 	mad_stream_buffer(stream, in_buff, IN_BUFF_LEN);
+	read_clks += clock() - start_read;
 
 	in_chunk_cnt++;
-	clock_t end_read = clock();
-	read_clks += end_read - start_read;
-	decode_clks += start_read - start_decode;
+
 	start_decode = clock();
 
 	return MAD_FLOW_CONTINUE;
@@ -255,9 +256,13 @@ static enum mad_flow error_fun(void *data, struct mad_stream *stream,
 		struct mad_frame *frame) {
 	(void) data;
 
+	decode_clks += clock() - start_decode;
+
 	xil_printf("decoding error 0x%04x (%s) at byte offset %d\n", stream->error,
 			mad_stream_errorstr(stream),
 			IN_BUFF_LEN * (in_chunk_cnt - 1) + (stream->this_frame - in_buff));
+
+	start_decode = clock();
 
 	/* return MAD_FLOW_BREAK here to stop decoding (and propagate an error) */
 
