@@ -46,8 +46,9 @@ int main (void)
 	for (;;) {
 		rc = pf_read(buff, sizeof(buff), &br);	/* Read a chunk of file */
 		if (rc || !br) break;			/* Error or end of file */
-		for (i = 0; i < br; i++)		/* Type the data */
-			putchar(buff[i]);
+		for (i = 0; i < br; i++) {		/* Type the data */
+			xil_printf("%c", buff[i]);
+		}
 	}
 	if (rc) die(rc);
 
@@ -87,7 +88,7 @@ int main (void)
 
 	// Test reading speed.
 
-#if 1
+#if 0
 	xil_printf("\nOpening a 1MiB file...\n");
 	rc = pf_open("1MiB.dat");
 	BYTE buff2[1024];
