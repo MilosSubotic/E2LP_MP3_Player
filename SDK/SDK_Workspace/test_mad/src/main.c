@@ -43,6 +43,8 @@
 #include "pff.h"
 #include "mad.h"
 
+#include "delay.h"
+
 // Params.
 
 #define IN_BUFF_LEN 4096
@@ -303,13 +305,17 @@ int main(void) {
 
 	microblaze_enable_interrupts();
 
-/*
-	// Should be something like 1ms
-	xil_printf("%dus\n", clock()*1000000/CLOCKS_PER_SEC);
-	for(int i = 0; i < 100000; i++){
-	}
-	xil_printf("%d us\n", clock()*1000000/CLOCKS_PER_SEC);
-*/
+
+	// Testing delay_us()
+	clock_t start = clock();
+	delay_us(1000);
+	clock_t end = clock();
+	// 48 kHz - 48 tick is 1 ms
+	xil_printf("ticks = %d\n", end - start);
+	xil_printf("time = %dus\n", clock_t2us(end - start));
+
+
+	return 0;
 
 	// SD card stuff.
 
