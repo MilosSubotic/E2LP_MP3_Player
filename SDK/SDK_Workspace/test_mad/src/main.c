@@ -305,17 +305,25 @@ int main(void) {
 
 	microblaze_enable_interrupts();
 
-
+#if 0
 	// Testing delay_us()
-	clock_t start = clock();
+	clock_t start, end;
+
+	start = clock();
 	delay_us(1000);
-	clock_t end = clock();
+	end = clock();
 	// 48 kHz - 48 tick is 1 ms
 	xil_printf("ticks = %d\n", end - start);
 	xil_printf("time = %dus\n", clock_t2us(end - start));
 
+	start = clock();
+	delay_us(10000);
+	end = clock();
+	// 48 kHz - 480 tick is 10 ms
+	xil_printf("ticks = %d\n", end - start);
+	xil_printf("time = %dus\n", clock_t2us(end - start));
+#endif
 
-	return 0;
 
 	// SD card stuff.
 

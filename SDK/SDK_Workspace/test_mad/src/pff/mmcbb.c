@@ -34,16 +34,11 @@
 #include "xspi.h"
 #include "xparameters.h"
 
+#include "delay.h"
+
 static XSpi Spi;
 
-void dly_us(int n) {
-	int i, j;
-	for(i = 0; i < n; i++){
-		for(j = 0; j < 100; j++){
-		}
-	}
-}
-#define DLY_US(n)	dly_us(n)	/* Delay n microseconds */
+#define DLY_US(n)	delay_us(n)	/* Delay n microseconds */
 
 #else
 
@@ -142,7 +137,7 @@ void xmit_mmc (
 		xil_printf("Error in write transfer\r\n");
 	}
 
-	DLY_US(1);
+	//DLY_US(1);
 #else
 	if (d & 0x80) DI_H(); else DI_L();	/* bit7 */
 	CK_H(); CK_L();
@@ -183,7 +178,7 @@ BYTE rcvr_mmc (void)
 		return XST_FAILURE;
 	}
 
-	DLY_US(1);
+	//DLY_US(1);
 #else
 	DI_H();	/* Send 0xFF */
 
@@ -228,7 +223,7 @@ void skip_mmc (
 			xil_printf("Error in skip transfer\r\n");
 			xil_printf("Status = %d\r\n", Status);
 		}
-		DLY_US(1);
+		//DLY_US(1);
 	} while (--n);
 #else
 	DI_H();	/* Send 0xFF */
@@ -261,7 +256,7 @@ void release_spi (void)
    		xil_printf("Failure Slave Select release_spi\r\n");
 	}
 
-	DLY_US(1);
+	//DLY_US(1);
 #else
 	CS_H();
 	rcvr_mmc();
@@ -434,7 +429,6 @@ DRESULT disk_readp (
 	DRESULT res;
 	BYTE d;
 	WORD bc, tmr;
-
 
 	if (!(CardType & CT_BLOCK)) lba *= 512;		/* Convert to byte address if needed */
 

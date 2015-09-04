@@ -42,16 +42,17 @@ int main (void)
 	rc = pf_open("MESSAGE.TXT");
 	if (rc) die(rc);
 
-	xil_printf("\nType the file content.\n");
+	xil_printf("File content:\n");
 	for (;;) {
-		rc = pf_read(buff, sizeof(buff), &br);	/* Read a chunk of file */
-		if (rc || !br) break;			/* Error or end of file */
-		for (i = 0; i < br; i++) {		/* Type the data */
+		rc = pf_read(buff, sizeof(buff), &br);	// Read a chunk of file
+		xil_printf("\nbr = %d\n", br);
+		if (rc || !br) break;			// Error or end of file
+		for (i = 0; i < br; i++) {		// Type the data
 			xil_printf("%c", buff[i]);
 		}
 	}
 	if (rc) die(rc);
-
+/*
 #if _USE_WRITE
 	xil_printf("\nOpen a file to write (write.txt).\n");
 	rc = pf_open("WRITE.TXT");
@@ -68,6 +69,7 @@ int main (void)
 	rc = pf_write(0, 0, &bw);
 	if (rc) die(rc);
 #endif
+*/
 
 #if _USE_DIR
 	xil_printf("\nOpen root directory.\n");
@@ -76,8 +78,8 @@ int main (void)
 
 	xil_printf("\nDirectory listing...\n");
 	for (;;) {
-		rc = pf_readdir(&dir, &fno);	/* Read a directory item */
-		if (rc || !fno.fname[0]) break;	/* Error or end of dir */
+		rc = pf_readdir(&dir, &fno);	// Read a directory item
+		if (rc || !fno.fname[0]) break;	// Error or end of dir
 		if (fno.fattrib & AM_DIR)
 			xil_printf("   <dir>  %s\n", fno.fname);
 		else
