@@ -52,6 +52,7 @@ int main (void)
 		}
 	}
 	if (rc) die(rc);
+
 /*
 #if _USE_WRITE
 	xil_printf("\nOpen a file to write (write.txt).\n");

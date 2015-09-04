@@ -36,6 +36,8 @@
 
 #include "delay.h"
 
+#include <string.h>
+
 static XSpi Spi;
 
 #define DLY_US(n)	delay_us(n)	/* Delay n microseconds */
@@ -428,7 +430,12 @@ DRESULT disk_readp (
 {
 	DRESULT res;
 	BYTE d;
-	WORD bc, tmr;
+	WORD tmr;
+	static BYTE read_buff[514];
+	static BYTE write_buff[514];
+	if(!write_buff[0]){
+		memset(write_buff, 0xff, 514);
+	}
 
 	if (!(CardType & CT_BLOCK)) lba *= 512;		/* Convert to byte address if needed */
 
@@ -442,25 +449,14 @@ DRESULT disk_readp (
 		} while (d == 0xFF && --tmr);
 
 		if (d == 0xFE) {				/* A data packet arrived */
-			bc = 514 - ofs - cnt;
-
-			/* Skip leading bytes */
-			if (ofs) skip_mmc(ofs);
-
-			/* Receive a part of the sector */
-			if (buff) {	/* Store data to the memory */
-				do
-					*buff++ = rcvr_mmc();
-				while (--cnt);
-			} else {	/* Forward data to the outgoing stream */
-				do {
-					d = rcvr_mmc();
-					//FORWARD(d);
-				} while (--cnt);
+			XStatus Status = XSpi_Transfer(&Spi, write_buff, read_buff, 514);
+		 	if(Status != XST_SUCCESS) {
+				xil_printf("Error in read transfer\r\n");
+				return res;
 			}
-
-			/* Skip trailing bytes and CRC */
-			skip_mmc(bc);
+		 	if(buff){
+		 		memcpy(buff, read_buff + ofs, cnt);
+		 	}
 
 			res = RES_OK;
 		}
