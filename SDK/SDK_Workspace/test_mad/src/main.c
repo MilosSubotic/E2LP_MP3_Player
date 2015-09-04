@@ -101,7 +101,7 @@ static enum mad_flow input_fun(void *data, struct mad_stream *stream) {
 		xil_printf("read time = %dus\n", clock_t2us(read_clks));
 		xil_printf("decode time = %dus\n", clock_t2us(decode_clks));
 		xil_printf("play time = %dus\n", clock_t2us(play_clks));
-		xil_printf("read bandwidth = %dBps\n", (u64)(num_int_chunks*IN_BUFF_LEN)*CLOCKS_PER_SEC / read_clks);
+		xil_printf("read bandwidth = %dBps\n", (u32)((u64)(num_int_chunks*IN_BUFF_LEN) * CLOCKS_PER_SEC/read_clks));
 		return MAD_FLOW_STOP;
 	}
 
