@@ -149,13 +149,17 @@ int main(void) {
 		return 1;
 	}
 
-	static BYTE buff2[4096];
+	static BYTE read_buff[4096];
 	int read_bytes = 0;
+#define CHECKSUM
+#ifdef CHECKSUM
+	u8 checksum = 0;
+#endif
 
 	xil_printf("Reading mp3 file...\n");
 	clock_t start = clock();
 	for (i = 0; i < 10; i++) {
-		rc = pf_read(buff2, sizeof(buff2), &br); /* Read a chunk of file */
+		rc = pf_read(read_buff, sizeof(read_buff), &br); /* Read a chunk of file */
 		if (rc) {
 			xil_printf("Error while reading mp3 file with rc = %d!\n", (int) rc);
 			return 1;
@@ -164,12 +168,21 @@ int main(void) {
 			break;
 		}
 		read_bytes += br;
+
+#ifdef CHECKSUM
+		for(int b = 0; b < br; b++){
+			checksum += read_buff[b];
+		}
+#endif
 	}
 	clock_t end = clock();
 	clock_t read_clks = end - start;
 	xil_printf("read time = %dus\n", clock_t2us(read_clks));
 	xil_printf("read bytes = %dB\n", read_bytes);
 	xil_printf("read bandwidth = %dBps\n", (u32)((u64)read_bytes * CLOCKS_PER_SEC/read_clks));
+#ifdef CHECKSUM
+	xil_printf("checksum = 0x%02x\n", checksum);
+#endif
 
 #endif
 	xil_printf("Test completed.\n");
