@@ -62,8 +62,6 @@ static inline u32 clock_t2us(clock_t c) {
 	return (u32)(((u64)(c))*1000000/CLOCKS_PER_SEC);
 }
 
-static volatile u16 tuning_word = 0;
-
 static s16 get_next_sample(void);
 
 static void sample_interrupt_handler(void* baseaddr_p) {
