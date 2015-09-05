@@ -430,26 +430,33 @@ DRESULT disk_readp (
 {
 	DRESULT res;
 	BYTE d;
-	WORD tmr;
+	int tmr;
 	static BYTE read_buff[514];
 	static BYTE write_buff[514];
 	if(!write_buff[0]){
 		memset(write_buff, 0xff, 514);
 	}
 
+#if 0
+	xil_printf("\n\n");
+	xil_printf("lba = %d\n", lba);
+	xil_printf("ofs = %d\n", ofs);
+	xil_printf("cnt = %d\n", cnt);
+#endif
+
 	if (!(CardType & CT_BLOCK)) lba *= 512;		/* Convert to byte address if needed */
 
 	res = RES_ERROR;
 	if (send_cmd(CMD17, lba) == 0) {		/* READ_SINGLE_BLOCK */
 
-		tmr = 1000;
+		tmr = 100000;
 		do {							/* Wait for data packet in timeout of 100ms */
-			DLY_US(100);
+			DLY_US(1);
 			d = rcvr_mmc();
 		} while (d == 0xFF && --tmr);
 
 		if (d == 0xFE) {				/* A data packet arrived */
-			XStatus Status = XSpi_Transfer(&Spi, write_buff, read_buff, 514);
+			XStatus Status = XSpi_Transfer(&Spi, write_buff, read_buff, ofs+cnt);
 		 	if(Status != XST_SUCCESS) {
 				xil_printf("Error in read transfer\r\n");
 				return res;

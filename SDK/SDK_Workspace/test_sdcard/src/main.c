@@ -95,6 +95,7 @@ int main(void) {
 			xil_printf("%c", buff[i]);
 		}
 	}
+	xil_printf("\n");
 	if (rc)
 		die(rc);
 
@@ -141,7 +142,7 @@ int main(void) {
 
 #if 1
 	xil_printf("Testing reading speed...\n");
-	xil_printf("\nOpening a mp3 file...\n");
+	xil_printf("Opening a mp3 file...\n");
 	rc = pf_open("LINDSE~1.MP3");
 	if (rc) {
 		xil_printf("Failed opening mp3 file with rc = %d!\n", (int) rc);
@@ -149,14 +150,14 @@ int main(void) {
 	}
 
 	static BYTE buff2[4096];
-	int read_bytes;
+	int read_bytes = 0;
 
+	xil_printf("Reading mp3 file...\n");
 	clock_t start = clock();
 	for (i = 0; i < 10; i++) {
 		rc = pf_read(buff2, sizeof(buff2), &br); /* Read a chunk of file */
 		if (rc) {
-			xil_printf("Error while reading mp3 file with rc = %d!\n",
-					(int) rc);
+			xil_printf("Error while reading mp3 file with rc = %d!\n", (int) rc);
 			return 1;
 		}
 		if (!br) {
