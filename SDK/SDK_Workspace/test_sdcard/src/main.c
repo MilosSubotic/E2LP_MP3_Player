@@ -151,7 +151,7 @@ int main(void) {
 
 	static BYTE read_buff[4096];
 	int read_bytes = 0;
-#define CHECKSUM
+//#define CHECKSUM
 #ifdef CHECKSUM
 	u8 checksum = 0;
 #endif
