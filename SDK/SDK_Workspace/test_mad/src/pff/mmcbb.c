@@ -37,6 +37,7 @@
 #include "delay.h"
 
 #include <string.h>
+#include <stdbool.h>
 
 static XSpi Spi;
 
@@ -428,28 +429,103 @@ DRESULT disk_readp (
 	WORD cnt		/* Number of bytes to read (ofs + cnt mus be <= 512) */
 )
 {
-	DRESULT res;
-	BYTE d;
-	WORD tmr;
-	static BYTE read_buff[514];
-	static BYTE write_buff[514];
+
+#if 0
+	xil_printf("\n\n");
+	xil_printf("lba = %d\n", lba);
+	xil_printf("ofs = %d\n", ofs);
+	xil_printf("cnt = %d\n", cnt);
+#endif
+
+
+	typedef struct LRUEntry {
+		bool valid;
+		DWORD lba_key;
+		BYTE buffer[512];
+		struct LRUEntry* more_recently_used;
+		struct LRUEntry* less_recently_used;
+	} LRUEntry;
+
+#define NUM_LRU_ENTRIES 2 // At least 2
+	static LRUEntry* least_recently_used_entry = 0;
+	static LRUEntry* most_recently_used_entry = 0;
+	static LRUEntry read_buff_lru[NUM_LRU_ENTRIES];
+
+	static BYTE write_buff[512];
+	// Init once.
 	if(!write_buff[0]){
-		memset(write_buff, 0xff, 514);
+		memset(write_buff, 0xff, 512);
+
+		// 0 is most recent and NUM_LRU_ENTRIES-1 is least recent.
+		read_buff_lru[0].valid = false;
+		read_buff_lru[0].more_recently_used = NULL;
+		read_buff_lru[0].less_recently_used = &read_buff_lru[1];
+		most_recently_used_entry = &read_buff_lru[0];
+		for(int i = 1; i < NUM_LRU_ENTRIES-1; i++){
+			read_buff_lru[i].valid = false;
+			read_buff_lru[i].more_recently_used = &read_buff_lru[i-1];
+			read_buff_lru[i].less_recently_used = &read_buff_lru[i+1];
+		}
+		read_buff_lru[NUM_LRU_ENTRIES-1].valid = false;
+		read_buff_lru[NUM_LRU_ENTRIES-1].more_recently_used = &read_buff_lru[NUM_LRU_ENTRIES-2];
+		read_buff_lru[NUM_LRU_ENTRIES-1].less_recently_used = NULL;
+		least_recently_used_entry = &read_buff_lru[NUM_LRU_ENTRIES-1];
 	}
+
+	// Search for entry...
+	for(int i = 0; i < NUM_LRU_ENTRIES; i++){
+		if(read_buff_lru[i].valid && read_buff_lru[i].lba_key == lba){
+		 	if(buff){
+		 		memcpy(buff, read_buff_lru[i].buffer + ofs, cnt);
+		 	}
+		 	LRUEntry* curr_entry = &read_buff_lru[i];
+
+		 	// Update LRU list.
+		 	if(curr_entry != most_recently_used_entry){
+				if(curr_entry == least_recently_used_entry){
+					least_recently_used_entry = curr_entry->more_recently_used;
+					least_recently_used_entry->less_recently_used = NULL;
+				}
+				most_recently_used_entry->more_recently_used = curr_entry;
+				curr_entry->less_recently_used = most_recently_used_entry;
+				curr_entry->more_recently_used = NULL;
+				most_recently_used_entry = curr_entry;
+		 	}
+		 	return RES_OK;
+		}
+	}
+
+	// Took least recently used entry to read to it.
+	// Update LRU list.
+	LRUEntry* curr_entry = least_recently_used_entry;
+	// Setting new least recently used.
+	least_recently_used_entry = curr_entry->more_recently_used;
+	least_recently_used_entry->less_recently_used = NULL;
+	// Prepending new most recently used.
+	most_recently_used_entry->more_recently_used = curr_entry;
+	curr_entry->less_recently_used = most_recently_used_entry;
+	curr_entry->more_recently_used = NULL;
+	most_recently_used_entry = curr_entry;
+
+	curr_entry->valid = true;
+	curr_entry->lba_key = lba;
+	BYTE* read_buff = curr_entry->buffer;
+
 
 	if (!(CardType & CT_BLOCK)) lba *= 512;		/* Convert to byte address if needed */
 
-	res = RES_ERROR;
+	DRESULT res = RES_ERROR;
 	if (send_cmd(CMD17, lba) == 0) {		/* READ_SINGLE_BLOCK */
+		BYTE d;
 
-		tmr = 1000;
+		int tmr = 100000;
 		do {							/* Wait for data packet in timeout of 100ms */
-			DLY_US(100);
+			DLY_US(1);
 			d = rcvr_mmc();
 		} while (d == 0xFF && --tmr);
 
 		if (d == 0xFE) {				/* A data packet arrived */
-			XStatus Status = XSpi_Transfer(&Spi, write_buff, read_buff, 514);
+			XStatus Status = XSpi_Transfer(&Spi, write_buff, read_buff, 512);
 		 	if(Status != XST_SUCCESS) {
 				xil_printf("Error in read transfer\r\n");
 				return res;
