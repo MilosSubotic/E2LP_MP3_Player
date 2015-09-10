@@ -177,6 +177,9 @@ int main(void) {
 	}
 	clock_t end = clock();
 	clock_t read_clks = end - start;
+	xil_printf("start = %d\n", start);
+	xil_printf("end = %d\n", end);
+	xil_printf("read_clks = %d\n", read_clks);
 	xil_printf("read time = %dus\n", clock_t2us(read_clks));
 	xil_printf("read bytes = %dB\n", read_bytes);
 	xil_printf("read bandwidth = %dBps\n", (u32)((u64)read_bytes * CLOCKS_PER_SEC/read_clks));

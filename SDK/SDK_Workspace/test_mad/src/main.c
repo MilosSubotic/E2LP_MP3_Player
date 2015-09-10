@@ -35,6 +35,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <assert.h>
 #include "platform.h"
 #include "xparameters.h"
 #include "xil_types.h"
@@ -42,10 +43,15 @@
 
 #include "pff.h"
 #include "mad.h"
+#include "LockFreeFifo.h"
 
 #include "delay.h"
 
 // Params.
+
+#define ENABLE_LOGS 0
+
+#define NUM_OUT_BUFFS 4
 
 #define IN_BUFF_LEN 4096
 
@@ -93,17 +99,22 @@ static enum mad_flow input_fun(void *data, struct mad_stream *stream) {
 
 	(void) data;
 
+#if ENABLE_LOGS
 	xil_printf("in_chunk_cnt = %d\n", in_chunk_cnt);
+#endif
 
+/*
 	// TODO Just for debug decode only one frame.
 	const int num_int_chunks = 10;
 	if (in_chunk_cnt == num_int_chunks) {
 		xil_printf("read time = %dus\n", clock_t2us(read_clks));
 		xil_printf("decode time = %dus\n", clock_t2us(decode_clks));
+		xil_printf("decode + read time = %dus\n", clock_t2us(read_clks + decode_clks));
 		xil_printf("play time = %dus\n", clock_t2us(play_clks));
 		xil_printf("read bandwidth = %dBps\n", (u32)((u64)(num_int_chunks*IN_BUFF_LEN) * CLOCKS_PER_SEC/read_clks));
 		return MAD_FLOW_STOP;
 	}
+*/
 
 	clock_t start_read = clock();
 	// Read buffer.
@@ -122,12 +133,10 @@ static enum mad_flow input_fun(void *data, struct mad_stream *stream) {
 	return MAD_FLOW_CONTINUE;
 }
 
+static LockFreeFifo filled_out_buffs;
+static LockFreeFifo empty_out_buffs;
 #define OUT_BUFF_LEN 1152
-#define NUM_OUT_BUFF 2
-static s16* out_buffs[NUM_OUT_BUFF];
-volatile static bool out_buffs_empty[NUM_OUT_BUFF];
-volatile static int current_out_buff = -1;
-volatile static u32 out_buff_read_idx = 0;
+static volatile bool out_starvation = false;
 
 static inline s16 scale(mad_fixed_t sample) {
 	/* round */
@@ -150,11 +159,10 @@ static enum mad_flow output_fun(void *data, struct mad_header const *header,
 
 	decode_clks += clock() - start_decode;
 
+#if ENABLE_LOGS
 	xil_printf("out_chunk_cnt = %d\n", out_chunk_cnt);
 	xil_printf("tick_48kHz = %d\n", (int)tick_48kHz);
-
-	xil_printf("current_out_buff = %d\n", current_out_buff);
-	xil_printf("out_buff_read_idx = %d\n", out_buff_read_idx);
+#endif
 
 	/* pcm->samplerate contains the sampling frequency */
 
@@ -163,61 +171,39 @@ static enum mad_flow output_fun(void *data, struct mad_header const *header,
 	left_ch = pcm->samples[0];
 	right_ch = pcm->samples[1];
 
+#if ENABLE_LOGS
 	xil_printf("nsamples = %d\n", nsamples);
+#endif
 
 	if (nsamples != OUT_BUFF_LEN) {
 		xil_printf("nsamples isn't %d as we expected!\n", OUT_BUFF_LEN);
 	}
 	play_clks += nsamples;
 
-	uint num_empty = 0;
-	for (int b = 0; b < NUM_OUT_BUFF; b++) {
-		xil_printf("out_buffs_empty[%d] = %d\n", b, out_buffs_empty[b]);
-		if (out_buffs_empty[b]) {
-			num_empty++;
-		}
+	if(out_starvation){
+		xil_printf("Output starvation!\n");
 	}
-	if (num_empty == NUM_OUT_BUFF) {
-		xil_printf("All buffers empty! Audio output starving!\n");
-	} else if (num_empty == 0) {
-		xil_printf("All buffers full! Hold on with decoding!\n");
-		// Busy wait for any empty buffer.
-		bool some_buff_empty = false;
-		while (!some_buff_empty) {
-			for (int b = 0; b < NUM_OUT_BUFF; b++) {
-				if (out_buffs_empty[b]) {
-					some_buff_empty = true;
-					break;
-				}
-			}
-		}
 
-	}
-	for (int b = 0; b < NUM_OUT_BUFF; b++) {
-		// Fill up first empty buffer.
-		if (out_buffs_empty[b]) {
-			s16* out_buff = out_buffs[b];
-			for (int s = 0; s < OUT_BUFF_LEN; s++) {
-				out_buff[s] = scale(left_ch[s]);
-			}
-			out_buffs_empty[b] = false;
+
+	s16* out_buff;
+	while(true){
+		if(LockFreeFifo_get(empty_out_buffs, (LockFreeFifo_elem_t*)&out_buff)){
 			break;
 		}
+		// No empty buffers, wait a little.
+#if ENABLE_LOGS
+	xil_printf("Decoding halted...\n");
+#endif
+		delay_us(1);
 	}
 
-/*
-	// TODO Debug stop on first buffer.
-	return MAD_FLOW_STOP;
-*/
-/*
-	 if(out_chunk_cnt == 2){
-	 xil_printf("left_ch\n");
-	 for(int i = 0; i < 10; i++){
-	 xil_printf("0x%08x\n", left_ch[i]);
-	 }
-	 return MAD_FLOW_STOP;
-	 }
-*/
+	for (int s = 0; s < OUT_BUFF_LEN; s++) {
+		out_buff[s] = scale(left_ch[s]);
+	}
+
+	assert(LockFreeFifo_put(filled_out_buffs, out_buff));
+
+
 	out_chunk_cnt++;
 
 	start_decode = clock();
@@ -225,29 +211,24 @@ static enum mad_flow output_fun(void *data, struct mad_header const *header,
 	return MAD_FLOW_CONTINUE;
 }
 
-s16 get_next_sample(void) {
-	if (current_out_buff == -1) {
-		// Find first filled buffer.
-		for (int b = 0; b < NUM_OUT_BUFF; b++) {
-			if (!out_buffs_empty[b]) {
-				current_out_buff = b;
-				break;
-			}
-		}
-		// Still there is no decoded samples. Come back later
-		if (current_out_buff == -1) {
-			return 0;
-		}
-	}
 
-	s16* out_buff = out_buffs[current_out_buff];
+s16 get_next_sample(void) {
+	static u32 out_buff_read_idx = 0;
+	static s16* out_buff = NULL;
+
+	// First time.
+	if(!out_buff){
+		 if(!LockFreeFifo_get(filled_out_buffs, (LockFreeFifo_elem_t*)&out_buff)){
+			 // No filled buffers.
+			 return 0;
+		 }
+	}
 
 	s16 sample = out_buff[out_buff_read_idx++];
 
 	if (out_buff_read_idx == OUT_BUFF_LEN) {
-		out_buffs_empty[current_out_buff] = true;
-		current_out_buff = -1;
-		out_buff_read_idx = 0;
+		assert(LockFreeFifo_put(empty_out_buffs, out_buff));
+		out_buff = NULL;
 		// Next time will use new buffer.
 	}
 
@@ -260,9 +241,11 @@ static enum mad_flow error_fun(void *data, struct mad_stream *stream,
 
 	decode_clks += clock() - start_decode;
 
+#if ENABLE_LOGS
 	xil_printf("decoding error 0x%04x (%s) at byte offset %d\n", stream->error,
 			mad_stream_errorstr(stream),
 			IN_BUFF_LEN * (in_chunk_cnt - 1) + (stream->this_frame - in_buff));
+#endif
 
 	start_decode = clock();
 
@@ -274,6 +257,23 @@ static enum mad_flow error_fun(void *data, struct mad_stream *stream,
 int main(void) {
 
 	init_platform();
+
+	in_buff = (BYTE*) malloc(IN_BUFF_LEN);
+	if (!in_buff) {
+		xil_printf("Failed to allocate input buffer!");
+		return 1;
+	}
+
+	filled_out_buffs = LockFreeFifo_create(NUM_OUT_BUFFS);
+	empty_out_buffs = LockFreeFifo_create(NUM_OUT_BUFFS);
+	for (int b = 0; b < NUM_OUT_BUFFS; b++) {
+		void* out_buff = malloc(OUT_BUFF_LEN * sizeof(s16));
+		if (!out_buff) {
+			xil_printf("Failed to allocate output buffer!");
+			return 1;
+		}
+		LockFreeFifo_put(empty_out_buffs, out_buff);
+	}
 
 	// Audio out stuff.
 
@@ -299,7 +299,9 @@ int main(void) {
 
 	XIntc_Enable(&intc, XPAR_AXI_INTC_0_AUDIO_OUT_O_SAMPLE_INTERRUPT_INTR);
 
+#if ENABLE_LOGS
 	xil_printf("audio_out = 0x%08x\n", *audio_out);
+#endif
 
 	microblaze_enable_interrupts();
 
@@ -328,36 +330,23 @@ int main(void) {
 	FATFS fatfs; /* File system object */
 	FRESULT rc;
 
-	xil_printf("\nMounting a volume...\n");
+	xil_printf("Mounting a volume...\n");
 	rc = pf_mount(&fatfs);
 	if (rc) {
 		xil_printf("Failed mounting volume with rc = %d!\n", (int) rc);
 		return 1;
 	}
 
-	xil_printf("\nOpening a mp3 file...\n");
-	rc = pf_open("LINDSE~1.MP3");
+	xil_printf("Opening a mp3 file...\n");
+	rc = pf_open("LINDSE~3.MP3");
 	if (rc) {
 		xil_printf("Failed opening mp3 file with rc = %d!\n", (int) rc);
 		return 1;
 	}
 
-	in_buff = (BYTE*) malloc(IN_BUFF_LEN);
-	if (!in_buff) {
-		xil_printf("Failed to allocate input buffer!");
-		return 1;
-	}
-
-	for (int b = 0; b < NUM_OUT_BUFF; b++) {
-		out_buffs_empty[b] = true;
-		out_buffs[b] = (s16*) malloc(OUT_BUFF_LEN * sizeof(s16));
-		if (!out_buffs[b]) {
-			xil_printf("Failed to allocate output buffer!");
-			return 1;
-		}
-	}
-
 	// MP3 stuff.
+
+	xil_printf("Decoding...\n");
 
 	struct mad_decoder decoder;
 
@@ -376,9 +365,7 @@ int main(void) {
 	/* release the decoder */
 	mad_decoder_finish(&decoder);
 
-	for (int b = 0; b < NUM_OUT_BUFF; b++) {
-		free(out_buffs[b]);
-	}
+	// TODO Out buffs cleanup.
 	free(in_buff);
 
 	xil_printf("\nTest completed.\n");
