@@ -25,6 +25,8 @@ architecture adau1772_i2s_ctrl_arch_v1 of adau1772_i2s_ctrl is
 	signal i2s_cnt       : unsigned(7 downto 0); -- [0, 250)
 	signal lrclk         : std_logic;
 	signal bclk_cnt      : unsigned(7 downto 3); -- [0, 25)
+   signal next_sample   : std_logic;
+   signal r_sample      : std_logic_vector(23 downto 0);
 	
 begin
 
@@ -61,8 +63,23 @@ begin
 	end process;
 	o_audio_codec_lrclk <= lrclk;
 	
-	o_audio_codec_dac_sdata <= i_sample(to_integer(24 - bclk_cnt)) when 0 < bclk_cnt and bclk_cnt <= 24 else '0';
-	
-	o_next_sample <= '1' when i2s_cnt = 250-1 and lrclk = '1' else '0';
+   next_sample <= '1' when i2s_cnt = 250-1 and lrclk = '1' else '0';
+	o_next_sample <= next_sample;
+   
+	process(i_clk_24MHz, in_reset)
+	begin
+		if in_reset = '0' then
+			r_sample <= (others => '0');
+		elsif rising_edge(i_clk_24MHz) then
+			if next_sample = '1' then
+				r_sample <= i_sample;
+			end if;
+		end if;
+	end process;
+   
+	o_audio_codec_dac_sdata <= 
+      r_sample(to_integer(24 - bclk_cnt)) 
+      when 0 < bclk_cnt and bclk_cnt <= 24 
+      else '0';
 	
 end architecture adau1772_i2s_ctrl_arch_v1;
