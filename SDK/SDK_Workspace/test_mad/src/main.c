@@ -47,15 +47,25 @@
 
 #include "delay.h"
 
+#include "dds.h"
+
 // Params.
 
 #define ENABLE_LOGS 0
 
-#define NUM_OUT_BUFFS 4
+#define ENABLE_EMPTY_SAMPLES 0
+
+// TODO 2 is enough.
+#define NUM_OUT_BUFFS 2
 
 #define IN_BUFF_LEN 4096
 
+
 // Audio stuff.
+
+
+static volatile u16 tuning_word = 0;
+
 
 static volatile u32* audio_out = (volatile u32*) XPAR_AUDIO_OUT_BASEADDR;
 
@@ -66,15 +76,6 @@ static inline clock_t clock(void) {
 #define CLOCKS_PER_SEC 48000
 static inline u32 clock_t2us(clock_t c) {
 	return (u32)(((u64)(c))*1000000/CLOCKS_PER_SEC);
-}
-
-static s16 get_next_sample(void);
-
-static void sample_interrupt_handler(void* baseaddr_p) {
-	(void) baseaddr_p;
-	tick_48kHz++;
-
-	*audio_out = ((s32) get_next_sample()) << 8;
 }
 
 static XIntc intc;
@@ -103,8 +104,8 @@ static enum mad_flow input_fun(void *data, struct mad_stream *stream) {
 	xil_printf("in_chunk_cnt = %d\n", in_chunk_cnt);
 #endif
 
-/*
-	// TODO Just for debug decode only one frame.
+#if 0
+	// Just for debug decode only 10 frames.
 	const int num_int_chunks = 10;
 	if (in_chunk_cnt == num_int_chunks) {
 		xil_printf("read time = %dus\n", clock_t2us(read_clks));
@@ -114,7 +115,7 @@ static enum mad_flow input_fun(void *data, struct mad_stream *stream) {
 		xil_printf("read bandwidth = %dBps\n", (u32)((u64)(num_int_chunks*IN_BUFF_LEN) * CLOCKS_PER_SEC/read_clks));
 		return MAD_FLOW_STOP;
 	}
-*/
+#endif
 
 	clock_t start_read = clock();
 	// Read buffer.
@@ -152,6 +153,10 @@ static inline s16 scale(mad_fixed_t sample) {
 	return sample >> (MAD_F_FRACBITS + 1 - 16);
 }
 
+#if ENABLE_EMPTY_SAMPLES
+static volatile u32 empty_samples = 0;
+#endif
+
 static enum mad_flow output_fun(void *data, struct mad_header const *header,
 		struct mad_pcm *pcm) {
 	unsigned int nchannels, nsamples;
@@ -171,6 +176,14 @@ static enum mad_flow output_fun(void *data, struct mad_header const *header,
 	left_ch = pcm->samples[0];
 	right_ch = pcm->samples[1];
 
+#if ENABLE_EMPTY_SAMPLES
+	if(empty_samples){
+		xil_printf("empty_samples = %d\n", empty_samples);
+		empty_samples = 0;
+	}
+#endif
+
+
 #if ENABLE_LOGS
 	xil_printf("nsamples = %d\n", nsamples);
 #endif
@@ -180,10 +193,10 @@ static enum mad_flow output_fun(void *data, struct mad_header const *header,
 	}
 	play_clks += nsamples;
 
+	// TODO Set it in get_next_sample().
 	if(out_starvation){
 		xil_printf("Output starvation!\n");
 	}
-
 
 	s16* out_buff;
 	while(true){
@@ -192,17 +205,17 @@ static enum mad_flow output_fun(void *data, struct mad_header const *header,
 		}
 		// No empty buffers, wait a little.
 #if ENABLE_LOGS
-	xil_printf("Decoding halted...\n");
+		xil_printf("Decoding halted...\n");
 #endif
 		delay_us(1);
 	}
-
 	for (int s = 0; s < OUT_BUFF_LEN; s++) {
-		out_buff[s] = scale(left_ch[s]);
+		//out_buff[s] = scale(left_ch[s]);
+		out_buff[s] = ((s16)dds_next_sample(tuning_word)) << 8;
 	}
+	out_buff[OUT_BUFF_LEN] = out_chunk_cnt;
 
 	assert(LockFreeFifo_put(filled_out_buffs, out_buff));
-
 
 	out_chunk_cnt++;
 
@@ -212,16 +225,22 @@ static enum mad_flow output_fun(void *data, struct mad_header const *header,
 }
 
 
-s16 get_next_sample(void) {
+static void sample_interrupt_handler(void* baseaddr_p) {
+	(void) baseaddr_p;
+	tick_48kHz++;
+
 	static u32 out_buff_read_idx = 0;
 	static s16* out_buff = NULL;
 
-	// First time.
+	// No filled buffer.
 	if(!out_buff){
-		 if(!LockFreeFifo_get(filled_out_buffs, (LockFreeFifo_elem_t*)&out_buff)){
-			 // No filled buffers.
-			 return 0;
-		 }
+		if(!LockFreeFifo_get(filled_out_buffs, (LockFreeFifo_elem_t*)&out_buff)){
+			// No filled buffers.
+#if ENABLE_EMPTY_SAMPLES
+			empty_samples++;
+#endif
+			return 0;
+		}
 	}
 
 	s16 sample = out_buff[out_buff_read_idx++];
@@ -229,10 +248,11 @@ s16 get_next_sample(void) {
 	if (out_buff_read_idx == OUT_BUFF_LEN) {
 		assert(LockFreeFifo_put(empty_out_buffs, out_buff));
 		out_buff = NULL;
+		out_buff_read_idx = 0;
 		// Next time will use new buffer.
 	}
 
-	return sample;
+	*audio_out = ((s32) sample) << 8;
 }
 
 static enum mad_flow error_fun(void *data, struct mad_stream *stream,
@@ -258,6 +278,8 @@ int main(void) {
 
 	init_platform();
 
+	tuning_word = dds_freq_to_tunning_word(1000, 48000);
+
 	in_buff = (BYTE*) malloc(IN_BUFF_LEN);
 	if (!in_buff) {
 		xil_printf("Failed to allocate input buffer!");
@@ -267,13 +289,14 @@ int main(void) {
 	filled_out_buffs = LockFreeFifo_create(NUM_OUT_BUFFS);
 	empty_out_buffs = LockFreeFifo_create(NUM_OUT_BUFFS);
 	for (int b = 0; b < NUM_OUT_BUFFS; b++) {
-		void* out_buff = malloc(OUT_BUFF_LEN * sizeof(s16));
+		void* out_buff = malloc((OUT_BUFF_LEN+1) * sizeof(s16));
 		if (!out_buff) {
 			xil_printf("Failed to allocate output buffer!");
 			return 1;
 		}
-		LockFreeFifo_put(empty_out_buffs, out_buff);
+		assert(LockFreeFifo_put(empty_out_buffs, out_buff));
 	}
+
 
 	// Audio out stuff.
 

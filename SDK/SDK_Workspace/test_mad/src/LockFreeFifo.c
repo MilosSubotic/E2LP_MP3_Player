@@ -32,16 +32,18 @@ struct _LockFreeFifo {
 
 };
 
+typedef long ssize_t;
+
 //////////////////////////////////////////////////////////////////////////////
 
 LockFreeFifo LockFreeFifo_create(size_t capacity) {
 	LockFreeFifo thiz = malloc(sizeof(struct _LockFreeFifo));
 
-	if(capacity < 2){ // At least one for use and one empty.
-		capacity = 2;
+	if(capacity < 1){ // At least one for use and one empty.
+		capacity = 1;
 	}
 
-	thiz->_buffer = malloc(capacity*sizeof(LockFreeFifo_elem_t));
+	thiz->_buffer = malloc((capacity + 1)*sizeof(LockFreeFifo_elem_t));
 	assert(thiz->_buffer != NULL);
 
 	thiz->_capacity = capacity;
@@ -66,10 +68,10 @@ size_t LockFreeFifo_capacity(LockFreeFifo thiz) {
  * @return Full space.
  */
 size_t LockFreeFifo_size(LockFreeFifo thiz) {
-	size_t size = thiz->_head - thiz->_tail;
+	ssize_t size = thiz->_head - thiz->_tail;
 	// TODO Will compiler optimize this?
-	if( size < 0 ){
-		size += thiz->_capacity;
+	if(size < 0){
+		size += thiz->_capacity + 1;
 	}
 
 	return size;
@@ -80,7 +82,7 @@ size_t LockFreeFifo_size(LockFreeFifo thiz) {
  * @return Free space
  */
 size_t LockFreeFifo_free(LockFreeFifo thiz) {
-	return thiz->_capacity - 1 - LockFreeFifo_size(thiz);
+	return thiz->_capacity - LockFreeFifo_size(thiz);
 }
 
 /**
@@ -98,7 +100,7 @@ bool LockFreeFifo_empty(LockFreeFifo thiz) {
 bool LockFreeFifo_full(LockFreeFifo thiz) {
 	size_t headInc = thiz->_head + 1;
 
-	if(headInc >= thiz->_capacity){ // If head is last and tail is first.
+	if(headInc >= thiz->_capacity + 1){ // If head is last and tail is first.
 		headInc = 0;
 	}
 
@@ -118,8 +120,8 @@ bool LockFreeFifo_put(LockFreeFifo thiz, LockFreeFifo_elem_t elem) {
 		thiz->_buffer[thiz->_head] = elem;
 		size_t newHead = thiz->_head + 1;
 		barrier(); // Don't optimize these two together.
-		thiz->_head = newHead >= thiz->_capacity ? 0 : newHead;
-			return true;
+		thiz->_head = newHead >= thiz->_capacity + 1 ? 0 : newHead;
+		return true;
 	}else{
 		return false;
 	}
@@ -138,7 +140,7 @@ bool LockFreeFifo_get(LockFreeFifo thiz, LockFreeFifo_elem_t* elem) {
 
 		size_t newTail = thiz->_tail + 1;
 		barrier(); // Don't optimize these two together.
-		thiz->_tail = newTail >= thiz->_capacity ? 0 : newTail;
+		thiz->_tail = newTail >= thiz->_capacity + 1 ? 0 : newTail;
 		return true;
 	}else{
 		return false;
