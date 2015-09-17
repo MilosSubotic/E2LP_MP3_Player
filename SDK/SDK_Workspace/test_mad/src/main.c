@@ -53,9 +53,8 @@
 
 #define ENABLE_LOGS 0
 
-#define ENABLE_EMPTY_SAMPLES 0
+#define ENABLE_LOG_NUM_EMPTY_SAMPLES 0
 
-// TODO 2 is enough.
 #define NUM_OUT_BUFFS 2
 
 #define IN_BUFF_LEN 4096
@@ -153,8 +152,8 @@ static inline s16 scale(mad_fixed_t sample) {
 	return sample >> (MAD_F_FRACBITS + 1 - 16);
 }
 
-#if ENABLE_EMPTY_SAMPLES
-static volatile u32 empty_samples = 0;
+#if ENABLE_LOG_NUM_EMPTY_SAMPLES
+static volatile u32 num_empty_samples = 0;
 #endif
 
 static enum mad_flow output_fun(void *data, struct mad_header const *header,
@@ -176,10 +175,10 @@ static enum mad_flow output_fun(void *data, struct mad_header const *header,
 	left_ch = pcm->samples[0];
 	right_ch = pcm->samples[1];
 
-#if ENABLE_EMPTY_SAMPLES
-	if(empty_samples){
-		xil_printf("empty_samples = %d\n", empty_samples);
-		empty_samples = 0;
+#if ENABLE_LOG_NUM_EMPTY_SAMPLES
+	if(num_empty_samples){
+		xil_printf("num_empty_samples = %d\n", num_empty_samples);
+		num_empty_samples = 0;
 	}
 #endif
 
@@ -236,10 +235,11 @@ static void sample_interrupt_handler(void* baseaddr_p) {
 	if(!out_buff){
 		if(!LockFreeFifo_get(filled_out_buffs, (LockFreeFifo_elem_t*)&out_buff)){
 			// No filled buffers.
-#if ENABLE_EMPTY_SAMPLES
-			empty_samples++;
+#if ENABLE_LOG_NUM_EMPTY_SAMPLES
+			num_empty_samples++;
 #endif
-			return 0;
+			*audio_out = 0;
+			return;
 		}
 	}
 
