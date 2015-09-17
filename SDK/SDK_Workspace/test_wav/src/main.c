@@ -54,14 +54,28 @@
 
 #define ENABLE_LOG_NUM_STARVING_SAMPLES 0
 
-#define ENABLE_DDS 1
+#define ENABLE_DDS 0
 
-// TODO 2 is enough.
+#define ENABLE_U8_DISABLE_S16_SAMPLES 1
+
 #define NUM_OUT_BUFFS 2
+
+
+#if ENABLE_U8_DISABLE_S16_SAMPLES
+#define WAV_FILE_NAME "LINDSE~1.WAV"
+#else
+#define WAV_FILE_NAME "LINDSE~2.WAV"
+#endif
 
 
 
 // Audio stuff.
+
+#if ENABLE_U8_DISABLE_S16_SAMPLES
+typedef u8 sample_t;
+#else
+typedef s16 sample_t;
+#endif
 
 #if ENABLE_DDS
 static volatile u16 tuning_word = 0;
@@ -96,7 +110,7 @@ static void sample_interrupt_handler(void* baseaddr_p) {
 	tick_48kHz++;
 
 	static u32 out_buff_read_idx = 0;
-	static s16* out_buff = NULL;
+	static sample_t* out_buff = NULL;
 
 	// No filled buffer.
 	if(!out_buff){
@@ -110,7 +124,11 @@ static void sample_interrupt_handler(void* baseaddr_p) {
 		}
 	}
 
+#if ENABLE_U8_DISABLE_S16_SAMPLES
+	s16 sample = ((u16)out_buff[out_buff_read_idx++]-128) << 8;
+#else
 	s16 sample = out_buff[out_buff_read_idx++];
+#endif
 
 	if (out_buff_read_idx == OUT_BUFF_LEN) {
 		assert(LockFreeFifo_put(empty_out_buffs, out_buff));
@@ -127,12 +145,14 @@ int main(void) {
 
 	init_platform();
 
+#if ENABLE_DDS
 	tuning_word = dds_freq_to_tunning_word(1000, 48000);
+#endif
 
 	filled_out_buffs = LockFreeFifo_create(NUM_OUT_BUFFS);
 	empty_out_buffs = LockFreeFifo_create(NUM_OUT_BUFFS);
 	for (int b = 0; b < NUM_OUT_BUFFS; b++) {
-		void* out_buff = malloc((OUT_BUFF_LEN) * sizeof(s16));
+		void* out_buff = malloc((OUT_BUFF_LEN) * sizeof(sample_t));
 		if (!out_buff) {
 			xil_printf("Failed to allocate output buffer!");
 			return 1;
@@ -204,7 +224,7 @@ int main(void) {
 	}
 
 	xil_printf("Opening a mp3 file...\n");
-	rc = pf_open("LINDSE~3.MP3");
+	rc = pf_open(WAV_FILE_NAME);
 	if (rc) {
 		xil_printf("Failed opening mp3 file with rc = %d!\n", (int) rc);
 		return 1;
@@ -216,7 +236,7 @@ int main(void) {
 	xil_printf("Playing...\n");
 
 	while(true){
-		s16* out_buff;
+		void* out_buff;
 		while (true) {
 			if (LockFreeFifo_get(empty_out_buffs,
 					(LockFreeFifo_elem_t*) &out_buff)) {
@@ -230,11 +250,15 @@ int main(void) {
 		}
 #if ENABLE_DDS
 		for (int s = 0; s < OUT_BUFF_LEN; s++) {
-			out_buff[s] = ((s16) dds_next_sample(tuning_word)) << 8;
+#if ENABLE_U8_DISABLE_S16_SAMPLES
+			((u8*)out_buff)[s] = dds_next_sample(tuning_word) + 128;
+#else
+			((s16*)out_buff)[s] = ((s16) dds_next_sample(tuning_word)) << 8;
+#endif
 		}
 #else
 		WORD br;
-		rc = pf_read(out_buff, OUT_BUFF_LEN, &br);
+		rc = pf_read(out_buff, OUT_BUFF_LEN*sizeof(sample_t), &br);
 		if (rc) {
 			xil_printf("Failed reading mp3 file with rc = %d!\n", (int) rc);
 			return 1;
