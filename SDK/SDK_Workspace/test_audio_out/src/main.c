@@ -40,6 +40,8 @@
 
 #include "dds.h"
 
+#define NUM_SEC 100
+
 static volatile u32* audio_out = (volatile u32*)XPAR_AUDIO_OUT_BASEADDR;
 
 static volatile u64 tick_48kHz = 0;
@@ -84,9 +86,10 @@ int main() {
 
 	microblaze_enable_interrupts();
 
-	while(1){
-		//*audio_out = ((s32)(tick_48kHz % 2048) - 1024) << 11;
+	xil_printf("Started counting...\n");
+	while(tick_48kHz < 48000*NUM_SEC){
 	}
+	xil_printf("%ds elapsed.\n", NUM_SEC);
 
 	xil_printf("\nTest completed.\n");
 
