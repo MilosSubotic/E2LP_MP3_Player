@@ -49,7 +49,8 @@ begin
 	
 	bclk_cnt <= i2s_cnt(7 downto 3);
 	
-	o_audio_codec_bclk <= i2s_cnt(2) when bclk_cnt < 25 else '0'; -- BCLK is 8 CLKs period.
+	-- BCLK is 8 CLKs period.
+	o_audio_codec_bclk <= i2s_cnt(2) when bclk_cnt < 25 else '0';
 	
 	process(i_clk_24MHz, in_reset)
 	begin
@@ -63,6 +64,8 @@ begin
 	end process;
 	o_audio_codec_lrclk <= lrclk;
 	
+	-- It is mono out and sample send while lrclk = '0' is 
+	-- outputed on both left and right audio channels.
    next_sample <= '1' when i2s_cnt = 250-1 and lrclk = '1' else '0';
 	o_next_sample <= next_sample;
    
