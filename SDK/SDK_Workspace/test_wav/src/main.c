@@ -54,7 +54,7 @@
 
 #define ENABLE_LOG_NUM_STARVING_SAMPLES 0
 
-#define ENABLE_DDS 0
+#define ENABLE_DDS 1
 
 #define ENABLE_U8_DISABLE_S16_SAMPLES 1
 
@@ -107,6 +107,13 @@ static volatile u32 num_starving_samples = 0;
 
 static void sample_interrupt_handler(void* baseaddr_p) {
 	(void) baseaddr_p;
+
+	static bool handler_called_twiced_hack = false;
+	handler_called_twiced_hack = !handler_called_twiced_hack;
+	if(handler_called_twiced_hack){
+		return;
+	}
+
 	tick_48kHz++;
 
 	static u32 out_buff_read_idx = 0;

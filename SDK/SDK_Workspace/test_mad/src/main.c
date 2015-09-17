@@ -219,6 +219,13 @@ static enum mad_flow output_fun(void *data, struct mad_header const *header,
 
 static void sample_interrupt_handler(void* baseaddr_p) {
 	(void) baseaddr_p;
+
+	static bool handler_called_twiced_hack = false;
+	handler_called_twiced_hack = !handler_called_twiced_hack;
+	if(handler_called_twiced_hack){
+		return;
+	}
+
 	tick_48kHz++;
 
 	static u32 out_buff_read_idx = 0;

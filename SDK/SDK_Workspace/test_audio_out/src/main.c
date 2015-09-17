@@ -32,6 +32,7 @@
  */
 
 #include <stdio.h>
+#include <stdbool.h>
 #include "platform.h"
 #include "xparameters.h"
 #include "xil_types.h"
@@ -50,6 +51,13 @@ static volatile u16 tuning_word = 0;
 
 static void sample_interrupt_handler(void* baseaddr_p) {
 	(void) baseaddr_p;
+
+	static bool handler_called_twiced_hack = false;
+	handler_called_twiced_hack = !handler_called_twiced_hack;
+	if(handler_called_twiced_hack){
+		return;
+	}
+
 	tick_48kHz++;
 
 	*audio_out = ((s32)dds_next_sample(tuning_word)) << 16;
