@@ -279,7 +279,7 @@ int main(void) {
 	}
 
 
-	xil_printf("\nExiting...\n");
+	xil_printf("Exiting...\n");
 
 	return 0;
 }

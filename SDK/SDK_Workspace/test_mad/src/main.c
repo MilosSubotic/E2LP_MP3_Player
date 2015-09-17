@@ -368,7 +368,7 @@ int main(void) {
 	// TODO Out buffs cleanup.
 	free(in_buff);
 
-	xil_printf("\nExiting...\n");
+	xil_printf("Exiting...\n");
 
 	return 0;
 }
