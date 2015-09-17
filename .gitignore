@@ -70,6 +70,7 @@ webtalk_impact.xml
 pepExtractor.prj
 impact.xsl
 impact_impact.xwbt
+xst/
 
 *.debug
 *.xml
