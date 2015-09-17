@@ -53,7 +53,7 @@
 
 #define ENABLE_LOGS 0
 
-#define ENABLE_LOG_NUM_EMPTY_SAMPLES 0
+#define ENABLE_LOG_NUM_STARVING_SAMPLES 0
 
 #define NUM_OUT_BUFFS 2
 
@@ -136,7 +136,6 @@ static enum mad_flow input_fun(void *data, struct mad_stream *stream) {
 static LockFreeFifo filled_out_buffs;
 static LockFreeFifo empty_out_buffs;
 #define OUT_BUFF_LEN 1152
-static volatile bool out_starvation = false;
 
 static inline s16 scale(mad_fixed_t sample) {
 	/* round */
@@ -152,8 +151,8 @@ static inline s16 scale(mad_fixed_t sample) {
 	return sample >> (MAD_F_FRACBITS + 1 - 16);
 }
 
-#if ENABLE_LOG_NUM_EMPTY_SAMPLES
-static volatile u32 num_empty_samples = 0;
+#if ENABLE_LOG_NUM_STARVING_SAMPLES
+static volatile u32 num_starving_samples = 0;
 #endif
 
 static enum mad_flow output_fun(void *data, struct mad_header const *header,
@@ -175,10 +174,10 @@ static enum mad_flow output_fun(void *data, struct mad_header const *header,
 	left_ch = pcm->samples[0];
 	right_ch = pcm->samples[1];
 
-#if ENABLE_LOG_NUM_EMPTY_SAMPLES
-	if(num_empty_samples){
-		xil_printf("num_empty_samples = %d\n", num_empty_samples);
-		num_empty_samples = 0;
+#if ENABLE_LOG_NUM_STARVING_SAMPLES
+	if(num_starving_samples){
+		xil_printf("num_starving_samples = %d\n", num_starving_samples);
+		num_starving_samples = 0;
 	}
 #endif
 
@@ -191,11 +190,6 @@ static enum mad_flow output_fun(void *data, struct mad_header const *header,
 		xil_printf("nsamples isn't %d as we expected!\n", OUT_BUFF_LEN);
 	}
 	play_clks += nsamples;
-
-	// TODO Set it in get_next_sample().
-	if(out_starvation){
-		xil_printf("Output starvation!\n");
-	}
 
 	s16* out_buff;
 	while(true){
@@ -212,7 +206,6 @@ static enum mad_flow output_fun(void *data, struct mad_header const *header,
 		//out_buff[s] = scale(left_ch[s]);
 		out_buff[s] = ((s16)dds_next_sample(tuning_word)) << 8;
 	}
-	out_buff[OUT_BUFF_LEN] = out_chunk_cnt;
 
 	assert(LockFreeFifo_put(filled_out_buffs, out_buff));
 
@@ -235,8 +228,8 @@ static void sample_interrupt_handler(void* baseaddr_p) {
 	if(!out_buff){
 		if(!LockFreeFifo_get(filled_out_buffs, (LockFreeFifo_elem_t*)&out_buff)){
 			// No filled buffers.
-#if ENABLE_LOG_NUM_EMPTY_SAMPLES
-			num_empty_samples++;
+#if ENABLE_LOG_NUM_STARVING_SAMPLES
+			num_starving_samples++;
 #endif
 			*audio_out = 0;
 			return;
@@ -289,7 +282,7 @@ int main(void) {
 	filled_out_buffs = LockFreeFifo_create(NUM_OUT_BUFFS);
 	empty_out_buffs = LockFreeFifo_create(NUM_OUT_BUFFS);
 	for (int b = 0; b < NUM_OUT_BUFFS; b++) {
-		void* out_buff = malloc((OUT_BUFF_LEN+1) * sizeof(s16));
+		void* out_buff = malloc((OUT_BUFF_LEN) * sizeof(s16));
 		if (!out_buff) {
 			xil_printf("Failed to allocate output buffer!");
 			return 1;
@@ -322,30 +315,7 @@ int main(void) {
 
 	XIntc_Enable(&intc, XPAR_AXI_INTC_0_AUDIO_OUT_O_SAMPLE_INTERRUPT_INTR);
 
-#if ENABLE_LOGS
-	xil_printf("audio_out = 0x%08x\n", *audio_out);
-#endif
-
 	microblaze_enable_interrupts();
-
-#if 0
-	// Testing delay_us()
-	clock_t start, end;
-
-	start = clock();
-	delay_us(1000);
-	end = clock();
-	// 48 kHz - 48 tick is 1 ms
-	xil_printf("ticks = %d\n", end - start);
-	xil_printf("time = %dus\n", clock_t2us(end - start));
-
-	start = clock();
-	delay_us(10000);
-	end = clock();
-	// 48 kHz - 480 tick is 10 ms
-	xil_printf("ticks = %d\n", end - start);
-	xil_printf("time = %dus\n", clock_t2us(end - start));
-#endif
 
 
 	// SD card stuff.
@@ -391,7 +361,7 @@ int main(void) {
 	// TODO Out buffs cleanup.
 	free(in_buff);
 
-	xil_printf("\nTest completed.\n");
+	xil_printf("\nExiting...\n");
 
 	return 0;
 }
