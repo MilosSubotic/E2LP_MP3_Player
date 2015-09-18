@@ -52,13 +52,14 @@
 
 #define ENABLE_LOGS 0
 
-#define ENABLE_LOG_NUM_STARVING_SAMPLES 0
+#define ENABLE_LOG_NUM_STARVING_SAMPLES 1
 
 #define ENABLE_DDS 0
 
 #define ENABLE_U8_DISABLE_S16_SAMPLES 0
 
-#define NUM_OUT_BUFFS 20
+// 2 buffers are enough not to have any starving.
+#define NUM_OUT_BUFFS 2
 
 
 #if ENABLE_U8_DISABLE_S16_SAMPLES
@@ -106,6 +107,7 @@ static LockFreeFifo empty_out_buffs;
 static volatile u32 num_starving_samples = 0;
 #endif
 
+// TODO Maybe changing handler routing instead of all these flags.
 static void sample_interrupt_handler(void* baseaddr_p) {
 	(void) baseaddr_p;
 
@@ -119,6 +121,16 @@ static void sample_interrupt_handler(void* baseaddr_p) {
 
 	static u32 out_buff_read_idx = 0;
 	static sample_t* out_buff = NULL;
+
+	static bool filling_fifo_on_start = true;
+	if(filling_fifo_on_start){
+		if(LockFreeFifo_full(filled_out_buffs)){
+			filling_fifo_on_start = false;
+		}else{
+			*audio_out = 0;
+			return;
+		}
+	}
 
 	// No filled buffer.
 	if(!out_buff){
