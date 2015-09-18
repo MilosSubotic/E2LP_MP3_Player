@@ -53,11 +53,11 @@
 
 #define ENABLE_LOGS 0
 
-#define ENABLE_LOG_NUM_STARVING_SAMPLES 0
+#define ENABLE_LOG_NUM_STARVING_SAMPLES 1
 
 #define NUM_OUT_BUFFS 2
 
-#define IN_BUFF_LEN 4096
+#define IN_BUFF_LEN 8192
 
 
 // Audio stuff.
@@ -203,8 +203,7 @@ static enum mad_flow output_fun(void *data, struct mad_header const *header,
 		delay_us(1);
 	}
 	for (int s = 0; s < OUT_BUFF_LEN; s++) {
-		//out_buff[s] = scale(left_ch[s]);
-		out_buff[s] = ((s16)dds_next_sample(tuning_word)) << 8;
+		out_buff[s] = scale(left_ch[s]);
 	}
 
 	assert(LockFreeFifo_put(filled_out_buffs, out_buff));
@@ -230,6 +229,16 @@ static void sample_interrupt_handler(void* baseaddr_p) {
 
 	static u32 out_buff_read_idx = 0;
 	static s16* out_buff = NULL;
+
+	static bool filling_fifo_on_start = true;
+	if(filling_fifo_on_start){
+		if(LockFreeFifo_full(filled_out_buffs)){
+			filling_fifo_on_start = false;
+		}else{
+			*audio_out = 0;
+			return;
+		}
+	}
 
 	// No filled buffer.
 	if(!out_buff){
@@ -338,7 +347,7 @@ int main(void) {
 	}
 
 	xil_printf("Opening a mp3 file...\n");
-	rc = pf_open("LINDSE~3.MP3");
+	rc = pf_open("LINDSE~1.MP3");
 	if (rc) {
 		xil_printf("Failed opening mp3 file with rc = %d!\n", (int) rc);
 		return 1;
@@ -359,7 +368,7 @@ int main(void) {
 	/* start decoding */
 	int result = mad_decoder_run(&decoder, MAD_DECODER_MODE_SYNC);
 	if (result) {
-		xil_printf("Decoding MP3 failed with rc = %d!", result);
+		xil_printf("Decoding MP3 failed with rc = %d!\n", result);
 	}
 
 	/* release the decoder */
