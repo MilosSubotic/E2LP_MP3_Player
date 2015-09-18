@@ -56,9 +56,9 @@
 
 #define ENABLE_DDS 0
 
-#define ENABLE_U8_DISABLE_S16_SAMPLES 1
+#define ENABLE_U8_DISABLE_S16_SAMPLES 0
 
-#define NUM_OUT_BUFFS 2
+#define NUM_OUT_BUFFS 20
 
 
 #if ENABLE_U8_DISABLE_S16_SAMPLES
@@ -98,6 +98,7 @@ static XIntc intc;
 
 static LockFreeFifo filled_out_buffs;
 static LockFreeFifo empty_out_buffs;
+
 #define OUT_BUFF_LEN 1024
 
 
@@ -123,8 +124,8 @@ static void sample_interrupt_handler(void* baseaddr_p) {
 	if(!out_buff){
 		if(!LockFreeFifo_get(filled_out_buffs, (LockFreeFifo_elem_t*)&out_buff)){
 			// No filled buffers.
-#if ENABLE_LOG_NUM_EMPTY_SAMPLES
-			num_num_starving_samples++;
+#if ENABLE_LOG_NUM_STARVING_SAMPLES
+			num_starving_samples++;
 #endif
 			*audio_out = 0;
 			return;
@@ -230,10 +231,10 @@ int main(void) {
 		return 1;
 	}
 
-	xil_printf("Opening a mp3 file...\n");
+	xil_printf("Opening a WAV file...\n");
 	rc = pf_open(WAV_FILE_NAME);
 	if (rc) {
-		xil_printf("Failed opening mp3 file with rc = %d!\n", (int) rc);
+		xil_printf("Failed opening WAV file with rc = %d!\n", (int) rc);
 		return 1;
 	}
 
@@ -255,6 +256,14 @@ int main(void) {
 #endif
 			delay_us(1);
 		}
+
+#if ENABLE_LOG_NUM_STARVING_SAMPLES
+	if(num_starving_samples){
+		xil_printf("num_starving_samples = %d\n", num_starving_samples);
+		num_starving_samples = 0;
+	}
+#endif
+
 #if ENABLE_DDS
 		for (int s = 0; s < OUT_BUFF_LEN; s++) {
 #if ENABLE_U8_DISABLE_S16_SAMPLES
@@ -270,7 +279,7 @@ int main(void) {
 			xil_printf("Failed reading mp3 file with rc = %d!\n", (int) rc);
 			return 1;
 		}
-		if(br != OUT_BUFF_LEN) {
+		if(br != OUT_BUFF_LEN*sizeof(sample_t)) {
 			break; // Exiting.
 		}
 #endif
