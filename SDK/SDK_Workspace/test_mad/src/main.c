@@ -43,6 +43,7 @@
 
 #include "pff.h"
 #include "mad.h"
+#include "mp3_parsing.h"
 #include "LockFreeFifo.h"
 
 #include "delay.h"
@@ -84,7 +85,7 @@ static XIntc intc;
 static int in_chunk_cnt = 0;
 static int out_chunk_cnt = 0;
 
-static BYTE* in_buff;
+static u8* in_buff;
 
 static clock_t read_clks = 0;
 static clock_t decode_clks = 0;
@@ -119,10 +120,62 @@ static enum mad_flow input_fun(void *data, struct mad_stream *stream) {
 	clock_t start_read = clock();
 	// Read buffer.
 	rc = pf_read(in_buff, IN_BUFF_LEN, &br);
+	// TODO Handle end of file and error on different way.
 	// Error or end of file.
 	if (rc || br != IN_BUFF_LEN) {
 		return MAD_FLOW_STOP;
 	}
+
+	// Search for sync word.
+	for(int i = 0; i < IN_BUFF_LEN; i++){
+		// Possible sync word.
+		if(in_buff[i] == 0xff && ((in_buff[i+1] & 0xe0) == 0xe0)){
+			xil_printf("\n\nFound 1st\n");
+
+			// To check is it real sync word calculate frame length
+			// from header and check is another sync word after header.
+
+			// Big endian.
+
+			xil_printf("in_buff[i] = 0x%02x\n", (int)in_buff[i]);
+			xil_printf("in_buff[i+1] = 0x%02x\n", (int)in_buff[i+1]);
+			xil_printf("in_buff[i+2] = 0x%02x\n", (int)in_buff[i+2]);
+			xil_printf("in_buff[i+3] = 0x%02x\n", (int)in_buff[i+3]);
+			MP3HEADER header = parse_mp3_header(&in_buff[i]);
+			xil_printf("header.framesync = 0x%04x\n", header.framesync);
+			xil_printf("header.MPEGID = %d\n", header.MPEGID);
+			xil_printf("header.layer = %d\n", header.layer);
+			xil_printf("header.protectbit = %d\n", header.protectbit);
+
+			u32 h32 = in_buff[i+1] << 8 | in_buff[i];
+			u16 h16 = *(u16*)&in_buff[i];
+			xil_printf("h16 = 0x%04x\n", h16);
+			xil_printf("h32 = 0x%08x\n", h32);
+
+			int bitrate = mp3_bitrate(header);
+			int sample_freq = mp3_sample_freq(header);
+			int frm_len;
+			if(header.layer == LAYER1){
+				frm_len = (12* bitrate / sample_freq + header.paddingbit) * 4;
+			}else{
+				frm_len = 144 * bitrate / sample_freq + header.paddingbit;
+			}
+			xil_printf("i = %d\n", i);
+			xil_printf("frm_len = %d\n", frm_len);
+			xil_printf("bitrate = %d\n", bitrate);
+			xil_printf("header.samplefreq = %d\n", header.samplefreq);
+			xil_printf("header.layer = %d\n", header.layer);
+			xil_printf("header.paddingbit = %d\n", header.paddingbit);
+
+			// Check for next sync.
+			if(in_buff[i + frm_len] == 0xff && ((in_buff[i+1 + frm_len] & 0xe0) == 0xe0)){
+				xil_printf("Found 2nd\n");
+			}
+		}
+	}
+
+	return MAD_FLOW_STOP;
+
 	mad_stream_buffer(stream, in_buff, IN_BUFF_LEN);
 	read_clks += clock() - start_read;
 
