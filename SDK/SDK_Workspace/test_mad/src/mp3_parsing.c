@@ -5,7 +5,7 @@
 
 #include "mp3_parsing.h"
 
-const int mp3_bitrates_table[] = {
+static const int mp3_bitrates_table[] = {
     BITRATE_FREE, BITRATE_FREE, BITRATE_FREE, BITRATE_FREE, BITRATE_FREE,
     32,  32,  32,  32,    8,
     64,  48,  40,  48,   16,
@@ -24,15 +24,17 @@ const int mp3_bitrates_table[] = {
     BITRATE_BAD, BITRATE_BAD, BITRATE_BAD, BITRATE_BAD, BITRATE_BAD
 };
 
-const int mp3_sample_freq_table[4][4] = {
-	{ 44100, 48000, 32000, SAMPLE_FREQ_BAD }, // MPEG1
-	{ 22050, 24000, 16000, SAMPLE_FREQ_BAD }, // MPEG2
+/**
+ * [MPEGID][layer]
+ */
+static const int mp3_sample_freq_table[4][4] = {
 	{ 11025, 12000,  8000, SAMPLE_FREQ_BAD }, // MPEG2.5
 	{ SAMPLE_FREQ_BAD, SAMPLE_FREQ_BAD, SAMPLE_FREQ_BAD, SAMPLE_FREQ_BAD },
+	{ 22050, 24000, 16000, SAMPLE_FREQ_BAD }, // MPEG2
+	{ 44100, 48000, 32000, SAMPLE_FREQ_BAD }, // MPEG1
 };
 
-
-int mp3_bitrate(MP3HEADER h) {
+int mp3_bitrate_kb(MP3HEADER h) {
     int index=0;
     if( (0x03&h.MPEGID)==MPEGVersion1 ){
         index = 3-h.layer;

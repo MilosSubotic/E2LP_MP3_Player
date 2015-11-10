@@ -18,15 +18,9 @@
 #define LAYER3  1
 #define LAYER_RESERVED   0
 //some macros defined by me... you can do what ever you want with these
-#define BITRATE_FREE 0xfffe
-#define BITRATE_BAD  0xffff
-#define SAMPLE_FREQ_BAD  0xffff
-
-extern const int mp3_bitrates_table[];
-/**
- * [MPEGID][layer]
- */
-extern const int mp3_sample_freq_table[4][4];
+#define BITRATE_FREE -2
+#define BITRATE_BAD  -1
+#define SAMPLE_FREQ_BAD  -1
 
 typedef struct{
 #ifdef __BIG_ENDIAN__
@@ -78,7 +72,7 @@ typedef struct{
     long    size    ;//6-9  Size of TAG MSB
 } MP3ID3TAG2;
 
-int mp3_bitrate(MP3HEADER h);
+int mp3_bitrate_kb(MP3HEADER h);
 
 int mp3_sample_freq(MP3HEADER h);
 

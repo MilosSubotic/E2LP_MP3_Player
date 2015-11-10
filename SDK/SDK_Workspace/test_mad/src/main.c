@@ -85,7 +85,8 @@ static XIntc intc;
 static int in_chunk_cnt = 0;
 static int out_chunk_cnt = 0;
 
-static u8* in_buff;
+static u8 in_buff[IN_BUFF_LEN];
+static u32 used_bytes = 0;
 
 static clock_t read_clks = 0;
 static clock_t decode_clks = 0;
@@ -93,12 +94,9 @@ static clock_t play_clks = 0;
 static clock_t start_decode;
 
 static enum mad_flow input_fun(void *data, struct mad_stream *stream) {
-	FRESULT rc;
-	WORD br;
+	(void) data;
 
 	decode_clks += clock() - start_decode;
-
-	(void) data;
 
 #if ENABLE_LOGS
 	xil_printf("in_chunk_cnt = %d\n", in_chunk_cnt);
@@ -116,70 +114,104 @@ static enum mad_flow input_fun(void *data, struct mad_stream *stream) {
 		return MAD_FLOW_STOP;
 	}
 #endif
+	static u8* usefull_start = 0;
+	static u8* usefull_end = 0;
 
-	clock_t start_read = clock();
-	// Read buffer.
-	rc = pf_read(in_buff, IN_BUFF_LEN, &br);
-	// TODO Handle end of file and error on different way.
-	// Error or end of file.
-	if (rc || br != IN_BUFF_LEN) {
-		return MAD_FLOW_STOP;
+	xil_printf("\n- start buffer\n\n");
+
+	u8* to_read_start;
+	int to_read_len;
+	if(!usefull_start){
+		// Initial.
+		to_read_start = in_buff;
+		to_read_len = IN_BUFF_LEN;
+	}else{
+		u32 rest = in_buff + IN_BUFF_LEN - usefull_end;
+		memcpy(in_buff, usefull_end, rest);
+		to_read_start = in_buff + rest;
+		to_read_len = IN_BUFF_LEN - rest;
+		usefull_start = 0; // Will set it when find first sync.
 	}
 
+	xil_printf("in_chunk_cnt = %d\n\n", in_chunk_cnt);
+
+	clock_t start_read = clock();
+	FRESULT rc;
+	WORD br;
+	// Read buffer.
+	rc = pf_read(to_read_start, to_read_len, &br);
+	// TODO Handle end of file and error on different way.
+	// Error or end of file.
+	// If br < to_read_len then should stop after decoding this.
+	if (rc || br != to_read_len) {
+		return MAD_FLOW_STOP;
+	}
+	read_clks += clock() - start_read;
+
+
 	// Search for sync word.
-	for(int i = 0; i < IN_BUFF_LEN; i++){
+	for(u8* p = in_buff; p < in_buff+IN_BUFF_LEN; p++){
 		// Possible sync word.
-		if(in_buff[i] == 0xff && ((in_buff[i+1] & 0xe0) == 0xe0)){
-			xil_printf("\n\nFound 1st\n");
+		if(*p == 0xff && ((*(p+1) & 0xe0) == 0xe0)){
+			// Found sync.
+			xil_printf("\n-- found sync\n");
 
 			// To check is it real sync word calculate frame length
 			// from header and check is another sync word after header.
 
-			// Big endian.
+			MP3HEADER header = parse_mp3_header(p);
 
-			xil_printf("in_buff[i] = 0x%02x\n", (int)in_buff[i]);
-			xil_printf("in_buff[i+1] = 0x%02x\n", (int)in_buff[i+1]);
-			xil_printf("in_buff[i+2] = 0x%02x\n", (int)in_buff[i+2]);
-			xil_printf("in_buff[i+3] = 0x%02x\n", (int)in_buff[i+3]);
-			MP3HEADER header = parse_mp3_header(&in_buff[i]);
-			xil_printf("header.framesync = 0x%04x\n", header.framesync);
-			xil_printf("header.MPEGID = %d\n", header.MPEGID);
-			xil_printf("header.layer = %d\n", header.layer);
-			xil_printf("header.protectbit = %d\n", header.protectbit);
 
-			u32 h32 = in_buff[i+1] << 8 | in_buff[i];
-			u16 h16 = *(u16*)&in_buff[i];
-			xil_printf("h16 = 0x%04x\n", h16);
-			xil_printf("h32 = 0x%08x\n", h32);
-
-			int bitrate = mp3_bitrate(header);
-			int sample_freq = mp3_sample_freq(header);
-			int frm_len;
-			if(header.layer == LAYER1){
-				frm_len = (12* bitrate / sample_freq + header.paddingbit) * 4;
-			}else{
-				frm_len = 144 * bitrate / sample_freq + header.paddingbit;
-			}
-			xil_printf("i = %d\n", i);
-			xil_printf("frm_len = %d\n", frm_len);
+			int bitrate = mp3_bitrate_kb(header);
 			xil_printf("bitrate = %d\n", bitrate);
+			xil_printf("header.MPEGID = %d\n", header.MPEGID);
 			xil_printf("header.samplefreq = %d\n", header.samplefreq);
+			int sample_freq = mp3_sample_freq(header);
+			xil_printf("sample_freq = %d\n", sample_freq);
 			xil_printf("header.layer = %d\n", header.layer);
 			xil_printf("header.paddingbit = %d\n", header.paddingbit);
-
-			// Check for next sync.
-			if(in_buff[i + frm_len] == 0xff && ((in_buff[i+1 + frm_len] & 0xe0) == 0xe0)){
-				xil_printf("Found 2nd\n");
+			int frm_len;
+			if(header.layer == LAYER1){
+				frm_len = (12 * bitrate*1000 / sample_freq + header.paddingbit) * 4;
+			}else{
+				frm_len = 144 * bitrate*1000 / sample_freq + header.paddingbit;
 			}
+			xil_printf("sync1 =  %d\n", used_bytes + p - in_buff);
+			xil_printf("frm_len = %d\n", frm_len);
+
+			// Could check next sync?
+			if(p+frm_len < in_buff+IN_BUFF_LEN-1){
+				xil_printf("sync2 should be =  %d\n", used_bytes + p+frm_len - in_buff);
+				// Check for next sync.
+				if(*(p+frm_len) == 0xff && ((*(p+frm_len+1) & 0xe0) == 0xe0)){
+					// Found next sync.
+					xil_printf("-- checked sync\n");
+					xil_printf("sync2 =  %d\n", used_bytes + p+frm_len - in_buff);
+
+					// If first sync in buffer, set up start.
+					if(!usefull_start){
+						usefull_start = p;
+					}
+					usefull_end = p+frm_len;
+
+				}
+			} // Else somethings is probably wrong.
+
+			// TODO Here should assert(sample_freq == 48000);
 		}
 	}
 
-	return MAD_FLOW_STOP;
+	int usefull_len = usefull_end-usefull_start;
+	xil_printf("usefull_len = %d\n", usefull_len);
+	used_bytes += usefull_len;
 
-	mad_stream_buffer(stream, in_buff, IN_BUFF_LEN);
-	read_clks += clock() - start_read;
+	mad_stream_buffer(stream, usefull_start, usefull_len);
 
 	in_chunk_cnt++;
+	if(in_chunk_cnt == 1){
+		return MAD_FLOW_STOP;
+	}
+
 
 	start_decode = clock();
 
@@ -326,7 +358,7 @@ static enum mad_flow error_fun(void *data, struct mad_stream *stream,
 #if ENABLE_LOGS
 	xil_printf("decoding error 0x%04x (%s) at byte offset %d\n", stream->error,
 			mad_stream_errorstr(stream),
-			IN_BUFF_LEN * (in_chunk_cnt - 1) + (stream->this_frame - in_buff));
+			used_bytes + (stream->this_frame - in_buff));
 #endif
 
 	start_decode = clock();
@@ -341,12 +373,6 @@ int main(void) {
 	init_platform();
 
 	tuning_word = dds_freq_to_tunning_word(1000, 48000);
-
-	in_buff = (BYTE*) malloc(IN_BUFF_LEN);
-	if (!in_buff) {
-		xil_printf("Failed to allocate input buffer!");
-		return 1;
-	}
 
 	filled_out_buffs = LockFreeFifo_create(NUM_OUT_BUFFS);
 	empty_out_buffs = LockFreeFifo_create(NUM_OUT_BUFFS);
@@ -428,7 +454,6 @@ int main(void) {
 	mad_decoder_finish(&decoder);
 
 	// TODO Out buffs cleanup.
-	free(in_buff);
 
 	xil_printf("Exiting...\n");
 
