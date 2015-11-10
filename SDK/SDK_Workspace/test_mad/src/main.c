@@ -86,7 +86,7 @@ static int in_chunk_cnt = 0;
 static int out_chunk_cnt = 0;
 
 static u8 in_buff[IN_BUFF_LEN];
-static u32 used_bytes = 0;
+static u32 consumed_read_bytes = 0;
 
 static clock_t read_clks = 0;
 static clock_t decode_clks = 0;
@@ -125,8 +125,10 @@ static enum mad_flow input_fun(void *data, struct mad_stream *stream) {
 		to_read_start = in_buff;
 		to_read_len = IN_BUFF_LEN;
 	}else{
+		// Move rest from previous read to start of buffer.
 		u32 rest = in_buff + IN_BUFF_LEN - usefull_end;
 		memcpy(in_buff, usefull_end, rest);
+		// Say how much and where to read new bytes to fill up buffer up to the end.
 		to_read_start = in_buff + rest;
 		to_read_len = IN_BUFF_LEN - rest;
 		usefull_start = 0; // Will set it when find first sync.
@@ -148,7 +150,11 @@ static enum mad_flow input_fun(void *data, struct mad_stream *stream) {
 
 
 	// Search for sync word.
-	for(u8* p = in_buff; p < in_buff+IN_BUFF_LEN-1; p++){
+	for(u8* p = in_buff; p < in_buff+IN_BUFF_LEN-1; p++){/*
+		if(*p == 0xff && ((*(p+1) & 0xfc) == 0xfc)){
+			xil_printf("ADTS =  %d\n", consumed_read_bytes + p - in_buff);
+		}*/
+
 		// Possible sync word.
 		if(*p == 0xff && ((*(p+1) & 0xe0) == 0xe0)){
 			// Found sync.
@@ -187,9 +193,10 @@ static enum mad_flow input_fun(void *data, struct mad_stream *stream) {
 		}
 	}
 
-	int usefull_len = usefull_end-usefull_start;
-	used_bytes += usefull_len;
+	// Calculated even not usefull bytes.
+	consumed_read_bytes += usefull_end-in_buff;
 
+	int usefull_len = usefull_end-usefull_start;
 	mad_stream_buffer(stream, usefull_start, usefull_len);
 
 	in_chunk_cnt++;
@@ -340,7 +347,7 @@ static enum mad_flow error_fun(void *data, struct mad_stream *stream,
 #if ENABLE_LOGS
 	xil_printf("decoding error 0x%04x (%s) at byte offset %d\n", stream->error,
 			mad_stream_errorstr(stream),
-			used_bytes + (stream->this_frame - in_buff));
+			consumed_read_bytes + (stream->this_frame - in_buff));
 #endif
 
 	start_decode = clock();
