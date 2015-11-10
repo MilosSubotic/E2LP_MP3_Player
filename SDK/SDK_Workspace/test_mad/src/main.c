@@ -117,7 +117,6 @@ static enum mad_flow input_fun(void *data, struct mad_stream *stream) {
 	static u8* usefull_start = 0;
 	static u8* usefull_end = 0;
 
-	xil_printf("\n- start buffer\n\n");
 
 	u8* to_read_start;
 	int to_read_len;
@@ -133,7 +132,6 @@ static enum mad_flow input_fun(void *data, struct mad_stream *stream) {
 		usefull_start = 0; // Will set it when find first sync.
 	}
 
-	xil_printf("in_chunk_cnt = %d\n\n", in_chunk_cnt);
 
 	clock_t start_read = clock();
 	FRESULT rc;
@@ -150,11 +148,10 @@ static enum mad_flow input_fun(void *data, struct mad_stream *stream) {
 
 
 	// Search for sync word.
-	for(u8* p = in_buff; p < in_buff+IN_BUFF_LEN; p++){
+	for(u8* p = in_buff; p < in_buff+IN_BUFF_LEN-1; p++){
 		// Possible sync word.
 		if(*p == 0xff && ((*(p+1) & 0xe0) == 0xe0)){
 			// Found sync.
-			xil_printf("\n-- found sync\n");
 
 			// To check is it real sync word calculate frame length
 			// from header and check is another sync word after header.
@@ -163,30 +160,19 @@ static enum mad_flow input_fun(void *data, struct mad_stream *stream) {
 
 
 			int bitrate = mp3_bitrate_kb(header);
-			xil_printf("bitrate = %d\n", bitrate);
-			xil_printf("header.MPEGID = %d\n", header.MPEGID);
-			xil_printf("header.samplefreq = %d\n", header.samplefreq);
 			int sample_freq = mp3_sample_freq(header);
-			xil_printf("sample_freq = %d\n", sample_freq);
-			xil_printf("header.layer = %d\n", header.layer);
-			xil_printf("header.paddingbit = %d\n", header.paddingbit);
 			int frm_len;
 			if(header.layer == LAYER1){
 				frm_len = (12 * bitrate*1000 / sample_freq + header.paddingbit) * 4;
 			}else{
 				frm_len = 144 * bitrate*1000 / sample_freq + header.paddingbit;
 			}
-			xil_printf("sync1 =  %d\n", used_bytes + p - in_buff);
-			xil_printf("frm_len = %d\n", frm_len);
 
 			// Could check next sync?
 			if(p+frm_len < in_buff+IN_BUFF_LEN-1){
-				xil_printf("sync2 should be =  %d\n", used_bytes + p+frm_len - in_buff);
 				// Check for next sync.
 				if(*(p+frm_len) == 0xff && ((*(p+frm_len+1) & 0xe0) == 0xe0)){
 					// Found next sync.
-					xil_printf("-- checked sync\n");
-					xil_printf("sync2 =  %d\n", used_bytes + p+frm_len - in_buff);
 
 					// If first sync in buffer, set up start.
 					if(!usefull_start){
@@ -202,15 +188,11 @@ static enum mad_flow input_fun(void *data, struct mad_stream *stream) {
 	}
 
 	int usefull_len = usefull_end-usefull_start;
-	xil_printf("usefull_len = %d\n", usefull_len);
 	used_bytes += usefull_len;
 
 	mad_stream_buffer(stream, usefull_start, usefull_len);
 
 	in_chunk_cnt++;
-	if(in_chunk_cnt == 1){
-		return MAD_FLOW_STOP;
-	}
 
 
 	start_decode = clock();
