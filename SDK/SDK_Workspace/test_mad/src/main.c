@@ -114,24 +114,23 @@ static enum mad_flow input_fun(void *data, struct mad_stream *stream) {
 		return MAD_FLOW_STOP;
 	}
 #endif
-	static u8* usefull_start = 0;
-	static u8* usefull_end = 0;
-
+	static u8* rest_start = 0;
 
 	u8* to_read_start;
 	int to_read_len;
-	if(!usefull_start){
+	if(!rest_start){ // First read ever.
 		// Initial.
 		to_read_start = in_buff;
-		to_read_len = IN_BUFF_LEN;
+		to_read_len = IN_BUFF_LEN-MAD_BUFFER_GUARD;
 	}else{
 		// Move rest from previous read to start of buffer.
-		u32 rest = in_buff + IN_BUFF_LEN - usefull_end;
-		memcpy(in_buff, usefull_end, rest);
+		u32 rest_len = in_buff+IN_BUFF_LEN-rest_start;
+		memcpy(in_buff, rest_start, rest_len);
 		// Say how much and where to read new bytes to fill up buffer up to the end.
-		to_read_start = in_buff + rest;
-		to_read_len = IN_BUFF_LEN - rest;
-		usefull_start = 0; // Will set it when find first sync.
+		to_read_start = in_buff + rest_len;
+		to_read_len = IN_BUFF_LEN-MAD_BUFFER_GUARD - rest_len;
+		xil_printf("rest_len = %d\n", rest_len);
+		xil_printf("rest_start[0] = 0x%02x\n", rest_start[0]);
 	}
 
 	xil_printf("in_chunk_cnt = %d\n", in_chunk_cnt);
@@ -151,9 +150,10 @@ static enum mad_flow input_fun(void *data, struct mad_stream *stream) {
 	}
 	read_clks += clock() - start_read;
 
-
+	u8* usefull_start = 0;
+	u8* usefull_end = 0;
 	// Search for sync word.
-	for(u8* p = in_buff; p < in_buff+IN_BUFF_LEN-1; p++){/*
+	for(u8* p = in_buff; p < in_buff+IN_BUFF_LEN-MAD_BUFFER_GUARD-1; p++){/*
 		if(*p == 0xff && ((*(p+1) & 0xfc) == 0xfc)){
 			xil_printf("ADTS = %d\n", consumed_read_bytes + (p-in_buff));
 		}*/
@@ -178,7 +178,7 @@ static enum mad_flow input_fun(void *data, struct mad_stream *stream) {
 			}
 
 			// Could check next sync?
-			if(p+frm_len < in_buff+IN_BUFF_LEN-1){
+			if(p+frm_len < in_buff+IN_BUFF_LEN-MAD_BUFFER_GUARD-1){
 				// Check for next sync.
 				if(*(p+frm_len) == 0xff && ((*(p+frm_len+1) & 0xe0) == 0xe0)){
 					// Found next sync.
@@ -202,7 +202,24 @@ static enum mad_flow input_fun(void *data, struct mad_stream *stream) {
 
 	int usefull_len = usefull_end-usefull_start;
 	xil_printf("usefull_len = %d\n", usefull_len);
-	mad_stream_buffer(stream, usefull_start, usefull_len);
+	xil_printf("usefull_end[0] = 0x%02x\n", usefull_end[0]);
+
+	// Move rest for MAD_BUFFER_GUARD torward end of buffer to have MAD_BUFFER_GUARD after usefull data.
+	u8* s = in_buff + IN_BUFF_LEN-MAD_BUFFER_GUARD - 1;
+	u8* d = in_buff + IN_BUFF_LEN - 1;
+	for(; s >= usefull_end; s--, d--){
+		*d = *s;
+	}
+	xil_printf("s[1] = 0x%02x\n", s[1]);
+	for(int i = MAD_BUFFER_GUARD-1; i >= 0; i--){
+		*d = 0;
+	}
+	rest_start = usefull_end + MAD_BUFFER_GUARD;
+	xil_printf("usefull_start-in_buff = %d\n", usefull_start-in_buff);
+	xil_printf("usefull_end-in_buff = %d\n", usefull_end-in_buff);
+	xil_printf("rest_start-in_buff = %d\n", rest_start-in_buff);
+
+	mad_stream_buffer(stream, usefull_start, usefull_len+MAD_BUFFER_GUARD);
 
 	in_chunk_cnt++;
 
