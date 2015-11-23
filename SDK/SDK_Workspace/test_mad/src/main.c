@@ -58,7 +58,7 @@
 
 #define NUM_OUT_BUFFS 2
 
-#define IN_BUFF_LEN 8192
+#define IN_BUFF_LEN 8192/2
 
 
 // Audio stuff.
@@ -134,6 +134,9 @@ static enum mad_flow input_fun(void *data, struct mad_stream *stream) {
 		usefull_start = 0; // Will set it when find first sync.
 	}
 
+	xil_printf("in_chunk_cnt = %d\n", in_chunk_cnt);
+	xil_printf("consumed_read_bytes = %d\n", consumed_read_bytes);
+
 
 	clock_t start_read = clock();
 	FRESULT rc;
@@ -152,7 +155,7 @@ static enum mad_flow input_fun(void *data, struct mad_stream *stream) {
 	// Search for sync word.
 	for(u8* p = in_buff; p < in_buff+IN_BUFF_LEN-1; p++){/*
 		if(*p == 0xff && ((*(p+1) & 0xfc) == 0xfc)){
-			xil_printf("ADTS =  %d\n", consumed_read_bytes + p - in_buff);
+			xil_printf("ADTS = %d\n", consumed_read_bytes + (p-in_buff));
 		}*/
 
 		// Possible sync word.
@@ -186,6 +189,7 @@ static enum mad_flow input_fun(void *data, struct mad_stream *stream) {
 					}
 					usefull_end = p+frm_len;
 
+					xil_printf("header = %d\n", consumed_read_bytes + (p-in_buff));
 				}
 			} // Else somethings is probably wrong.
 
@@ -197,10 +201,14 @@ static enum mad_flow input_fun(void *data, struct mad_stream *stream) {
 	consumed_read_bytes += usefull_end-in_buff;
 
 	int usefull_len = usefull_end-usefull_start;
+	xil_printf("usefull_len = %d\n", usefull_len);
 	mad_stream_buffer(stream, usefull_start, usefull_len);
 
 	in_chunk_cnt++;
 
+	if(in_chunk_cnt == 3){
+		return MAD_FLOW_STOP;
+	}
 
 	start_decode = clock();
 
@@ -344,7 +352,8 @@ static enum mad_flow error_fun(void *data, struct mad_stream *stream,
 
 	decode_clks += clock() - start_decode;
 
-#if ENABLE_LOGS
+//#if ENABLE_LOGS
+#if 1
 	xil_printf("decoding error 0x%04x (%s) at byte offset %d\n", stream->error,
 			mad_stream_errorstr(stream),
 			consumed_read_bytes + (stream->this_frame - in_buff));
