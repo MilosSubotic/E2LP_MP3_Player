@@ -1,0 +1,20 @@
+
+- TODO:
+	+ Comment logs out and measure performance.
+
+	+ Lindsey Stirling - Electric Daisy Violin.mp3 
+		- mono
+		- mp2
+		- lower bitrate
+
+	- Try to play 44.1kHz how it sound in test_mad.
+		48kHz seems somehow fast.
+		
+	- Try to decode MP3 with minimad, offline, on PC,
+		but with chunked input not one big buffer,
+		to get same errors from decoder and will we
+		hear same glitches.
+
+- Resources:
+	- MP3 format:
+		http://mpgedit.org/mpgedit/mpeg_format/mpeghdr.htm
